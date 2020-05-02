@@ -1,0 +1,38 @@
+﻿0 HEAD
+1 SOUR FINDMYPAST
+2 NAME Findmypast Family Tree
+2 VERS 2.0
+2 CORP DC Thomson Family History
+3 ADDR The Glebe, 6 Chapel Place, Rivington Street
+4 CITY London
+4 POST EC2A 3DQ
+4 CTRY England
+3 WWW www.findmypast.com
+1 DATE 15 APR 2020
+2 TIME 15:21:24
+1 FILE Henderson Family Tree.ged
+1 SUBM @SUBM1@
+1 DEST FINDMYPAST
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+1 LANG English
+1 _ROOT @I1@
+0 @SUBM1@ SUBM
+1 NAME Not known
+0 @I1@ INDI
+1 NAME Gavin /Henderson/
+2 GIVN Gavin
+2 SURN Henderson
+2 _PRIM Y
+1 SEX M
+1 BIRT
+2 _PRIM Y
+2 DATE 1 Jan 1990
+2 PLAC Dundee
+1 _UID 9ACF01CA-A40C-4AF5-8905-D6678B6288BE
+1 CHAN
+2 DATE 15 APR 2020
+3 TIME 16:19:21
+0 TRLR
