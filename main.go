@@ -4,9 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 func maybePanic(err error) {
@@ -16,6 +20,7 @@ func maybePanic(err error) {
 }
 
 type Gedcom struct {
+	Lock          sync.RWMutex
 	Persons       []Person
 	Familys       []Family
 	Childs        []Child
@@ -84,8 +89,11 @@ var monthNumberByAbbreviation = map[string]string{
 }
 
 func main() {
+	startTime := time.Now()
+
 	scenarioFlagPtr := flag.String("scenario", "sibling", "which gedcom to parse")
 	flag.Parse()
+
 	file, err := os.Open("./test-input/" + *scenarioFlagPtr + ".ged")
 	maybePanic(err)
 	defer file.Close()
@@ -104,13 +112,16 @@ func main() {
 	}
 	currentLines := []string{}
 	currentRecord := []string{}
+	waitGroup := &sync.WaitGroup{}
+
 	for fileScanner.Scan() {
 		line := fileScanner.Text()
 		words := strings.SplitN(line, " ", 3)
 
 		// interpret record once it's fully read
 		if len(currentLines) > 0 && words[0] == "0" {
-			interpretRecord(&gedcom, currentLines, currentRecord)
+			waitGroup.Add(1)
+			go interpretRecord(&gedcom, currentLines, currentRecord, waitGroup)
 			currentRecord = []string{}
 			currentLines = []string{}
 		}
@@ -130,14 +141,17 @@ func main() {
 	maybePanic(err)
 	err = writer.Flush()
 	maybePanic(err)
+
+	fmt.Printf("done in %f seconds.", float64(time.Since(startTime))*math.Pow10(-9))
 }
 
-func interpretRecord(gedcom *Gedcom, recordLines []string, currentRecord []string) {
+func interpretRecord(gedcom *Gedcom, recordLines []string, currentRecord []string, waitGroup *sync.WaitGroup) {
 	if len(currentRecord) >= 3 && currentRecord[2] == "INDI" {
 		interpretPersonRecord(gedcom, recordLines, currentRecord)
 	} else if len(currentRecord) >= 3 && currentRecord[2] == "FAM" {
 		interpretFamilyRecord(gedcom, recordLines, currentRecord)
 	}
+	waitGroup.Done()
 }
 
 func interpretPersonRecord(gedcom *Gedcom, recordLines []string, currentRecord []string) {
@@ -210,10 +224,12 @@ func interpretPersonRecord(gedcom *Gedcom, recordLines []string, currentRecord [
 			person.IsLiving = false
 		}
 		if words[0] == "1" && words[1] == "SEX" {
-			if words[2] == "M" {
-				person.Gender = 1
-			} else if words[2] == "F" {
-				person.Gender = 2
+			if len(words) > 2 {
+				if words[2] == "M" {
+					person.Gender = 1
+				} else if words[2] == "F" {
+					person.Gender = 2
+				}
 			}
 		}
 		if words[0] == "1" && words[1] == "CHAN" {
@@ -239,7 +255,9 @@ func interpretPersonRecord(gedcom *Gedcom, recordLines []string, currentRecord [
 			person.PersonRef = words[2]
 		}
 	}
+	gedcom.Lock.Lock()
 	gedcom.Persons = append(gedcom.Persons, person)
+	gedcom.Lock.Unlock()
 }
 
 func interpretFamilyRecord(gedcom *Gedcom, recordLines []string, currentRecord []string) {
@@ -298,5 +316,7 @@ func interpretFamilyRecord(gedcom *Gedcom, recordLines []string, currentRecord [
 
 	}
 
+	gedcom.Lock.Lock()
 	gedcom.Familys = append(gedcom.Familys, family)
+	gedcom.Lock.Unlock()
 }
