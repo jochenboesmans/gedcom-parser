@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"os"
 	"strconv"
@@ -12,6 +13,12 @@ import (
 	"sync"
 	"time"
 )
+
+func hash(s string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return h.Sum32()
+}
 
 func maybePanic(err error) {
 	if err != nil {
@@ -29,28 +36,36 @@ type Gedcom struct {
 	Medias        []string
 	FactTypes     []string
 }
-
+type OutputGedcom struct {
+	Persons       []Person
+	Familys       []Family
+	Childs        []Child
+	SourceRepos   []string
+	MasterSources []string
+	Medias        []string
+	FactTypes     []string
+}
 type Family struct {
-	Id          string
-	FatherId    string
-	MotherId    string
-	ChildIds    []string
+	Id          uint32
+	FatherId    uint32
+	MotherId    uint32
+	ChildIds    []uint32
 	DateCreated string
 }
 
 type Child struct {
-	Id                   string
-	FamilyId             string
-	ChildId              string
-	RelationshipToFather int8
-	RelationshipToMother int8
+	Id                   uint32
+	FamilyId             uint32
+	ChildId              uint32
+	RelationshipToFather uint8
+	RelationshipToMother uint8
 }
 
 type Person struct {
-	Id          string
+	Id          uint32
 	PersonRef   string
 	IsLiving    bool
-	Gender      int8
+	Gender      uint8
 	DateCreated string
 	Names       []Name
 	Facts       []Fact
@@ -133,7 +148,19 @@ func main() {
 		}
 	}
 
-	gedcomJson, err := json.MarshalIndent(gedcom, "", "  ")
+	waitGroup.Wait()
+
+	gedcomWithoutLock := OutputGedcom{
+		Persons:       gedcom.Persons,
+		Childs:        gedcom.Childs,
+		Familys:       gedcom.Familys,
+		SourceRepos:   gedcom.SourceRepos,
+		MasterSources: gedcom.MasterSources,
+		Medias:        gedcom.Medias,
+		FactTypes:     gedcom.FactTypes,
+	}
+
+	gedcomJson, err := json.MarshalIndent(gedcomWithoutLock, "", "  ")
 	writeFile, err := os.Create("./artifacts/actual-" + *scenarioFlagPtr + ".json")
 
 	writer := bufio.NewWriter(writeFile)
@@ -157,7 +184,7 @@ func interpretRecord(gedcom *Gedcom, recordLines []string, currentRecord []strin
 func interpretPersonRecord(gedcom *Gedcom, recordLines []string, currentRecord []string) {
 	// person is assumed living unless proven to be dead
 	person := Person{
-		Id:       currentRecord[1],
+		Id:       hash(currentRecord[1]),
 		IsLiving: true,
 		Facts:    []Fact{},
 		Names:    []Name{},
@@ -262,22 +289,20 @@ func interpretPersonRecord(gedcom *Gedcom, recordLines []string, currentRecord [
 
 func interpretFamilyRecord(gedcom *Gedcom, recordLines []string, currentRecord []string) {
 	family := Family{
-		Id:          currentRecord[1],
-		FatherId:    "",
-		MotherId:    "",
-		ChildIds:    []string{},
+		Id:          hash(currentRecord[1]),
+		ChildIds:    []uint32{},
 		DateCreated: "",
 	}
 	for i, line := range recordLines {
 		words := strings.SplitN(line, " ", 3)
 		if words[1] == "HUSB" {
-			family.FatherId = words[2]
+			family.FatherId = hash(words[2])
 		}
 		if words[1] == "WIFE" {
-			family.MotherId = words[2]
+			family.MotherId = hash(words[2])
 		}
 		if words[1] == "CHIL" {
-			family.ChildIds = append(family.ChildIds, words[2])
+			family.ChildIds = append(family.ChildIds, hash(words[2]))
 		}
 		if words[0] == "1" && words[1] == "CHAN" {
 			date := ""
@@ -302,14 +327,14 @@ func interpretFamilyRecord(gedcom *Gedcom, recordLines []string, currentRecord [
 
 	for i, childId := range family.ChildIds {
 		child := Child{
-			Id:       "CHILD-" + strconv.Itoa(i) + "-" + currentRecord[1],
-			FamilyId: currentRecord[1],
+			Id:       hash("CHILD-" + strconv.Itoa(i) + "-" + currentRecord[1]),
+			FamilyId: hash(currentRecord[1]),
 			ChildId:  childId,
 		}
-		if family.MotherId != "" {
+		if family.MotherId != 0 {
 			child.RelationshipToMother = 1
 		}
-		if family.FatherId != "" {
+		if family.FatherId != 0 {
 			child.RelationshipToFather = 1
 		}
 		gedcom.Childs = append(gedcom.Childs, child)
