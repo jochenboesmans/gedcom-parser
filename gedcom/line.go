@@ -7,57 +7,56 @@ import (
 )
 
 type Line struct {
-	level  uint8
-	xRefId string
-	tag    string
-	value  string
+	originalLine string
 }
 
 func NewLine(gedcomLine string) *Line {
-	bomTrimmedGedcomLine := strings.Trim(gedcomLine, "\uFEFF")
-	parts := strings.SplitN(bomTrimmedGedcomLine, " ", 4)
-	level, err := strconv.ParseUint(parts[0], 10, 64)
-	util.MaybePanic(err)
-	line := Line{
-		level: uint8(level),
+	return &Line{
+		originalLine: gedcomLine,
 	}
-
-	if len(parts) >= 2 {
-		if parts[1][0] == '@' {
-			line.xRefId = parts[1]
-		} else {
-			line.tag = parts[1]
-		}
-	}
-
-	if len(parts) >= 3 {
-		if line.xRefId != "" {
-			line.tag = parts[2]
-		} else {
-			line.value = parts[2]
-		}
-	}
-
-	if len(parts) >= 4 {
-		if line.xRefId != "" {
-			line.value = parts[3]
-		} else {
-			line.value = parts[2] + " " + parts[3]
-		}
-	}
-
-	return &line
 }
 
 func (gedcomLine *Line) Level() uint8 {
-	return gedcomLine.level
+	line := gedcomLine.originalLine
+	parts := strings.SplitN(line, " ", 2)
+	level, err := strconv.Atoi(parts[0])
+	util.MaybePanic(err)
+	return uint8(level)
 }
 func (gedcomLine *Line) XRefID() string {
-	return gedcomLine.xRefId
+	line := gedcomLine.originalLine
+	parts := strings.SplitN(line, " ", 2)
+	if len(parts) == 2 && parts[1][0] == '@' {
+		return parts[1]
+	}
+	return ""
 }
+
 func (gedcomLine *Line) Tag() string {
-	return gedcomLine.tag
+	line := gedcomLine.originalLine
+	parts := strings.SplitN(line, " ", 3)
+	if len(parts) == 2 && parts[1][0] != '@' {
+		return parts[1]
+	}
+	if len(parts) == 3 && parts[1][0] == '@' {
+		return parts[2]
+	}
+	return ""
 }
+
 func (gedcomLine *Line) Value() string {
-	return gedcomLine.value
+	line := gedcomLine.originalLine
+	parts := strings.SplitN(line, " ", 4)
+	if len(parts) == 3 && parts[1][0] != '@' {
+		return parts[2]
+	}
+	if len(parts) == 4 {
+		if parts[1][0] == '@' {
+			return parts[3]
+		} else {
+			lastParts := parts[2] + " " + parts[3]
+			return lastParts
+		}
+	}
+	return ""
 }

@@ -60,8 +60,14 @@ func main() {
 
 	gedcom := model.NewGedcom()
 
+	i := 0
 	for fileScanner.Scan() {
-		line := fileScanner.Text()
+		line := ""
+		if i == 0 {
+			line = strings.TrimPrefix(fileScanner.Text(), "\uFEFF")
+		} else {
+			line = fileScanner.Text()
+		}
 		gedcomLine := gedcomSpec.NewLine(line)
 
 		// interpret record once it's fully read
@@ -77,6 +83,7 @@ func main() {
 		if currentRecordLine != nil {
 			currentRecordDeepLines = append(currentRecordDeepLines, gedcomLine)
 		}
+		i++
 	}
 
 	waitGroup.Wait()
