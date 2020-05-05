@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
 	"github.com/jochenboesmans/gedcom-parser/model"
 	"github.com/jochenboesmans/gedcom-parser/util"
 )
@@ -53,28 +54,28 @@ func main() {
 	fileScanner := bufio.NewScanner(file)
 	fileScanner.Split(bufio.ScanLines)
 
-	currentLines := []string{}
-	currentRecord := []string{}
+	currentRecordDeepLines := []*gedcomSpec.Line{}
+	var currentRecordLine *gedcomSpec.Line
 	waitGroup := &sync.WaitGroup{}
 
 	gedcom := model.NewGedcom()
 
 	for fileScanner.Scan() {
 		line := fileScanner.Text()
-		words := strings.SplitN(line, " ", 3)
+		gedcomLine := gedcomSpec.NewLine(line)
 
 		// interpret record once it's fully read
-		if len(currentLines) > 0 && words[0] == "0" {
+		if currentRecordLine != nil && gedcomLine.Level() == 0 {
 			waitGroup.Add(1)
-			go interpretRecord(gedcom, currentLines, currentRecord, waitGroup)
-			currentRecord = []string{}
-			currentLines = []string{}
+			go interpretRecord(gedcom, currentRecordDeepLines, currentRecordLine, waitGroup)
+			currentRecordLine = nil
+			currentRecordDeepLines = []*gedcomSpec.Line{}
 		}
-		if words[0] == "0" && len(words) >= 3 && (words[2] == "INDI" || words[2] == "FAM") {
-			currentRecord = words
+		if gedcomLine.Level() == 0 {
+			currentRecordLine = gedcomLine
 		}
-		if len(currentRecord) > 0 {
-			currentLines = append(currentLines, line)
+		if currentRecordLine != nil {
+			currentRecordDeepLines = append(currentRecordDeepLines, gedcomLine)
 		}
 	}
 
@@ -102,108 +103,108 @@ func main() {
 	fmt.Printf("done in %f seconds.", float64(time.Since(startTime))*math.Pow10(-9))
 }
 
-func interpretRecord(gedcom *model.Gedcom, recordLines []string, currentRecord []string, waitGroup *sync.WaitGroup) {
-	if len(currentRecord) >= 3 && currentRecord[2] == "INDI" {
-		interpretPersonRecord(gedcom, recordLines, currentRecord)
-	} else if len(currentRecord) >= 3 && currentRecord[2] == "FAM" {
-		interpretFamilyRecord(gedcom, recordLines, currentRecord)
+func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line, waitGroup *sync.WaitGroup) {
+	switch currentRecordLine.Tag() {
+	case "INDI":
+		interpretPersonRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+	case "FAM":
+		interpretFamilyRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+		// case "HEAD":
+		// case "NOTE":
+		// case "REPO":
+		// case "SOUR":
+		// case "SUBN":
+		// case "SUBM":
+		// case "TRLR":
 	}
 	waitGroup.Done()
 }
 
-func interpretPersonRecord(gedcom *model.Gedcom, recordLines []string, currentRecord []string) {
-	person := model.NewPerson(currentRecord[1])
-	for i, line := range recordLines {
-		words := strings.SplitN(line, " ", 3)
-		if i != 0 && words[0] == "0" {
+func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
+	person := model.NewPerson(currentRecordLine.XRefID())
+	for i, line := range currentRecordDeepLines {
+		if i != 0 && line.Level() == 0 {
 			break
 		}
-		if words[0] == "1" && words[1] == "NAME" {
-			name := model.PersonName{
-				FactTypeId: 100,
-			}
-			for _, nameLine := range recordLines[i+1 : len(recordLines)] {
-				nameWords := strings.SplitN(nameLine, " ", 3)
-				if nameWords[0] == "1" {
-					break
+		if line.Level() == 1 {
+			switch line.Tag() {
+			case "NAME":
+				name := model.PersonName{
+					FactTypeId: 100,
 				}
-				if nameWords[1] == "GIVN" {
-					name.GivenNames = nameWords[2]
-				}
-				if nameWords[1] == "SURN" {
-					name.Surnames = nameWords[2]
-				}
-				//if birthFactWords[1] == "_PRIM" {
-				//	if birthFactWords[2] == "Y" {
-				//		birthFact.Preferred = true
-				//	} else if birthFactWords[2] == "N" {
-				//		birthFact.Preferred = false
-				//  }
-				//}
-			}
-			if name.GivenNames != "" || name.Surnames != "" {
-				person.Names = append(person.Names, name)
-			}
-		}
-		if words[0] == "1" && words[1] == "BIRT" {
-			birthFact := model.PersonFact{
-				FactTypeId: 405,
-			}
-			for _, birthFactLine := range recordLines[i+1 : len(recordLines)] {
-				birthFactWords := strings.SplitN(birthFactLine, " ", 3)
-				if birthFactWords[0] == "1" {
-					break
-				}
-				if birthFactWords[1] == "_PRIM" {
-					if birthFactWords[2] == "Y" {
-						birthFact.Preferred = true
-					} else if birthFactWords[2] == "N" {
-						birthFact.Preferred = false
+				for _, nameLine := range currentRecordDeepLines[i+1:] {
+					if nameLine.Level() == 0 {
+						break
+					}
+					switch nameLine.Tag() {
+					case "GIVN":
+						name.GivenNames = nameLine.Value()
+					case "SURN":
+						name.Surnames = nameLine.Value()
 					}
 				}
-				if birthFactWords[1] == "DATE" {
-					birthFact.DateDetail = birthFactWords[2]
+				if name.GivenNames != "" || name.Surnames != "" {
+					person.Names = append(person.Names, name)
 				}
-				if birthFactWords[1] == "PLAC" {
-					birthFact.Place = model.PersonPlace{PlaceName: birthFactWords[2]}
+			case "BIRT":
+				birthFact := model.PersonFact{
+					FactTypeId: 405,
 				}
-			}
-			person.Facts = append(person.Facts, birthFact)
-		}
-		if words[0] == "1" && words[1] == "DEAT" {
-			// TODO: Actually add death facts
-			person.IsLiving = false
-		}
-		if words[0] == "1" && words[1] == "SEX" {
-			if len(words) > 2 {
-				if words[2] == "M" {
+				for _, birthFactLine := range currentRecordDeepLines[i+1:] {
+					if birthFactLine.Level() < 2 {
+						break
+					}
+					switch birthFactLine.Tag() {
+					case "_PRIM":
+						switch birthFactLine.Value() {
+						case "Y":
+							birthFact.Preferred = true
+						case "N":
+							birthFact.Preferred = false
+						}
+					case "DATE":
+						birthFact.DateDetail = birthFactLine.Value()
+					case "PLAC":
+						birthFact.Place = model.PersonPlace{PlaceName: birthFactLine.Value()}
+					}
+				}
+				person.Facts = append(person.Facts, birthFact)
+			//TODO: case "DEAT":
+			case "SEX":
+				switch line.Value() {
+				case "M":
 					person.Gender = 1
-				} else if words[2] == "F" {
+				case "F":
 					person.Gender = 2
 				}
-			}
-		}
-		if words[0] == "1" && words[1] == "CHAN" {
-			date := ""
-			for _, chanLine := range recordLines[i+1 : len(recordLines)] {
-				chanLineWords := strings.SplitN(chanLine, " ", 3)
-				if chanLineWords[0] == "1" {
-					break
+			case "CHAN":
+				date := ""
+				for _, chanLine := range currentRecordDeepLines[i+1:] {
+					if chanLine.Level() < 2 {
+						break
+					}
+					switch chanLine.Tag() {
+					case "DATE":
+						dateParts := strings.SplitN(chanLine.Value(), " ", 3)
+						if len(dateParts) >= 1 {
+							date = dateParts[0]
+						}
+						if len(dateParts) >= 2 {
+							date = monthNumberByAbbreviation[dateParts[1]] + "-" + date
+						}
+						if len(dateParts) >= 3 {
+							date = dateParts[2] + "-" + date
+						}
+					case "TIME":
+						date += "T" + chanLine.Value()
+					}
 				}
-				if chanLineWords[1] == "DATE" {
-					dateParts := strings.SplitN(chanLineWords[2], " ", 3)
-					date += dateParts[2] + "-" + monthNumberByAbbreviation[dateParts[1]] + "-" + dateParts[0]
+				if date != "" {
+					person.DateCreated = date
 				}
-				if chanLineWords[1] == "TIME" {
-					date += "T" + chanLineWords[2]
-				}
+			case "_UID":
+				person.PersonRef = line.Value()
 			}
-			if date != "" {
-				person.DateCreated = date
-			}
-		}
-		if words[1] == "_UID" {
-			person.PersonRef = words[2]
 		}
 	}
 	gedcom.Lock.Lock()
@@ -211,38 +212,45 @@ func interpretPersonRecord(gedcom *model.Gedcom, recordLines []string, currentRe
 	gedcom.Lock.Unlock()
 }
 
-func interpretFamilyRecord(gedcom *model.Gedcom, recordLines []string, currentRecord []string) {
-	family := model.NewFamily(currentRecord[1])
-	for i, line := range recordLines {
-		words := strings.SplitN(line, " ", 3)
-		if words[1] == "HUSB" {
-			fatherId, err := util.Hash(words[2])
+func interpretFamilyRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
+	family := model.NewFamily(currentRecordLine.XRefID())
+	for i, line := range currentRecordDeepLines {
+		if i != 0 && line.Level() == 0 {
+			break
+		}
+		switch line.Tag() {
+		case "HUSB":
+			fatherId, err := util.Hash(line.Value())
 			util.MaybePanic(err)
 			family.FatherId = fatherId
-		}
-		if words[1] == "WIFE" {
-			motherId, err := util.Hash(words[2])
+		case "WIFE":
+			motherId, err := util.Hash(line.Value())
 			util.MaybePanic(err)
 			family.MotherId = motherId
-		}
-		if words[1] == "CHIL" {
-			childId, err := util.Hash(words[2])
+		case "CHIL":
+			childId, err := util.Hash(line.Value())
 			util.MaybePanic(err)
 			family.ChildIds = append(family.ChildIds, childId)
-		}
-		if words[0] == "1" && words[1] == "CHAN" {
+		case "CHAN":
 			date := ""
-			for _, chanLine := range recordLines[i+1 : len(recordLines)] {
-				chanLineWords := strings.SplitN(chanLine, " ", 3)
-				if chanLineWords[0] == "1" {
+			for _, chanLine := range currentRecordDeepLines[i+1:] {
+				if chanLine.Level() < 2 {
 					break
 				}
-				if chanLineWords[1] == "DATE" {
-					dateParts := strings.SplitN(chanLineWords[2], " ", 3)
-					date += dateParts[2] + "-" + monthNumberByAbbreviation[dateParts[1]] + "-" + dateParts[0]
-				}
-				if chanLineWords[1] == "TIME" {
-					date += "T" + chanLineWords[2]
+				switch chanLine.Tag() {
+				case "DATE":
+					dateParts := strings.SplitN(chanLine.Value(), " ", 3)
+					if len(dateParts) >= 1 {
+						date = dateParts[0]
+					}
+					if len(dateParts) >= 2 {
+						date = monthNumberByAbbreviation[dateParts[1]] + "-" + date
+					}
+					if len(dateParts) >= 3 {
+						date = dateParts[2] + "-" + date
+					}
+				case "TIME":
+					date += "T" + chanLine.Value()
 				}
 			}
 			if date != "" {
@@ -252,7 +260,7 @@ func interpretFamilyRecord(gedcom *model.Gedcom, recordLines []string, currentRe
 	}
 
 	for i, childId := range family.ChildIds {
-		child := model.NewChild(currentRecord[1], i, childId)
+		child := model.NewChild(currentRecordLine.XRefID(), i, childId)
 		if family.MotherId != 0 {
 			child.RelationshipToMother = 1
 		}
