@@ -25,8 +25,8 @@ func (gedcomLine *Line) Level() uint8 {
 }
 func (gedcomLine *Line) XRefID() string {
 	line := gedcomLine.originalLine
-	parts := strings.SplitN(line, " ", 2)
-	if len(parts) == 2 && parts[1][0] == '@' {
+	parts := strings.SplitN(line, " ", 3)
+	if len(parts) >= 2 && parts[1][0] == '@' {
 		return parts[1]
 	}
 	return ""
@@ -34,11 +34,11 @@ func (gedcomLine *Line) XRefID() string {
 
 func (gedcomLine *Line) Tag() string {
 	line := gedcomLine.originalLine
-	parts := strings.SplitN(line, " ", 3)
-	if len(parts) == 2 && parts[1][0] != '@' {
+	parts := strings.SplitN(line, " ", 4)
+	if len(parts) >= 2 && parts[1][0] != '@' {
 		return parts[1]
 	}
-	if len(parts) == 3 && parts[1][0] == '@' {
+	if len(parts) >= 3 && parts[1][0] == '@' {
 		return parts[2]
 	}
 	return ""
