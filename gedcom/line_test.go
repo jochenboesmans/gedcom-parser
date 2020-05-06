@@ -11,10 +11,11 @@ var gedcomLines = []string{
 	"1 SEX M",
 	"1 BIRT",
 	"2 DATE 02 OCT 1822",
+	"1 FAMC @4@",
 }
 
 func TestLine_Level(t *testing.T) {
-	expectedLevels := []uint8{0, 0, 1, 1, 1, 2}
+	expectedLevels := []uint8{0, 0, 1, 1, 1, 2, 1}
 	for i, line := range gedcomLines {
 		l := NewLine(line)
 		if l.Level() != expectedLevels[i] {
@@ -24,7 +25,7 @@ func TestLine_Level(t *testing.T) {
 }
 
 func TestLine_XRefID(t *testing.T) {
-	expectedValues := []string{"", "@1@", "", "", "", ""}
+	expectedValues := []string{"", "@1@", "", "", "", "", ""}
 	for i, line := range gedcomLines {
 		l := NewLine(line)
 		if l.XRefID() != expectedValues[i] {
@@ -34,7 +35,7 @@ func TestLine_XRefID(t *testing.T) {
 }
 
 func TestLine_Tag(t *testing.T) {
-	expectedValues := []string{"HEAD", "INDI", "NAME", "SEX", "BIRT", "DATE"}
+	expectedValues := []string{"HEAD", "INDI", "NAME", "SEX", "BIRT", "DATE", "FAMC"}
 	for i, line := range gedcomLines {
 		l := NewLine(line)
 		if l.Tag() != expectedValues[i] {
@@ -44,7 +45,7 @@ func TestLine_Tag(t *testing.T) {
 }
 
 func TestLine_Value(t *testing.T) {
-	expectedValues := []string{"", "", "Robert Eugene/Williams/", "M", "", "02 OCT 1822"}
+	expectedValues := []string{"", "", "Robert Eugene/Williams/", "M", "", "02 OCT 1822", "@4@"}
 	for i, line := range gedcomLines {
 		l := NewLine(line)
 		if l.Value() != expectedValues[i] {

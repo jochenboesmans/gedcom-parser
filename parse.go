@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
@@ -14,6 +13,7 @@ import (
 	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
 	"github.com/jochenboesmans/gedcom-parser/model"
 	"github.com/jochenboesmans/gedcom-parser/util"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 type OutputGedcom struct {
@@ -98,7 +98,7 @@ func main() {
 		FactTypes:     gedcom.FactTypes,
 	}
 
-	gedcomJson, err := json.MarshalIndent(gedcomWithoutLock, "", "  ")
+	gedcomJson, err := ffjson.Marshal(gedcomWithoutLock)
 	writeFile, err := os.Create("./artifacts/actual-" + *scenarioFlagPtr + ".json")
 
 	writer := bufio.NewWriter(writeFile)
