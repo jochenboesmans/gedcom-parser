@@ -13,10 +13,10 @@ type Child struct {
 	RelationshipToMother uint8
 }
 
-func NewChild(familyRecordId string, ithChildInFamily int, childId uint32) Child {
-	childPersonId, err := util.Hash("CHILD-" + strconv.Itoa(ithChildInFamily) + "-" + familyRecordId)
+func NewChild(familyRecordId *string, ithChildInFamily int, childId uint32) Child {
+	childPersonId, err := util.Hash("CHILD-" + strconv.Itoa(ithChildInFamily) + "-" + *familyRecordId)
 	util.MaybePanic(err)
-	familyId, err := util.Hash(familyRecordId)
+	familyId, err := util.Hash(*familyRecordId)
 	util.MaybePanic(err)
 	util.MaybePanic(err)
 	return Child{

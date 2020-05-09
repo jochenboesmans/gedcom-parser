@@ -29,6 +29,9 @@ func (gedcomLine *Line) Level() *uint8 {
 	util.MaybePanic(err)
 	levelUint8 := uint8(level)
 	result := &levelUint8
+	if result == nil {
+		panic("no value for required field 'tag' of gedcom line.")
+	}
 	gedcomLine.levelMemo = result
 	return result
 }
@@ -56,6 +59,9 @@ func (gedcomLine *Line) Tag() *string {
 	}
 	if len(parts) >= 3 && parts[1][0] == '@' {
 		result = &parts[2]
+	}
+	if result == nil {
+		panic("no value for required field 'tag' of gedcom line.")
 	}
 	gedcomLine.tagMemo = result
 	return result

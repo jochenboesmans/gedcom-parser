@@ -35,10 +35,9 @@ func NewPerson(identificationString *string) *Person {
 	id, err := util.Hash(*identificationString)
 	util.MaybePanic(err)
 
-	boolVar := true
 	// person is assumed living unless proven to be dead
 	return &Person{
 		Id:       id,
-		IsLiving: boolVar,
+		IsLiving: true,
 	}
 }

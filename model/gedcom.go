@@ -5,10 +5,10 @@ import "sync"
 type Gedcom struct {
 	Lock                sync.RWMutex
 	Persons             []*Person
-	Familys             []Family
-	Childs              []Child
+	Familys             []*Family
+	Childs              []*Child
 	SourceRepos         []string
-	MasterSources       []Source
+	MasterSources       []*Source
 	Medias              []string
 	FactTypes           []string
 	ReceivingSystemName string
@@ -21,15 +21,16 @@ type Gedcom struct {
 	CharacterSet        CharacterSet
 	Language            string
 	PlaceHierarchy      string
-	ContentDescription  string
+	ContentDescription  *string
 }
 
 func NewGedcom() *Gedcom {
 	return &Gedcom{
-		Familys:       []Family{},
-		Childs:        []Child{},
+		Persons:       []*Person{},
+		Familys:       []*Family{},
+		Childs:        []*Child{},
 		SourceRepos:   []string{},
-		MasterSources: []Source{},
+		MasterSources: []*Source{},
 		Medias:        []string{},
 		FactTypes:     []string{},
 	}

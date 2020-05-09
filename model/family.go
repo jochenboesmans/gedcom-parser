@@ -10,8 +10,8 @@ type Family struct {
 	DateCreated string
 }
 
-func NewFamily(identificationString string) Family {
-	id, err := util.Hash(identificationString)
+func NewFamily(identificationString *string) Family {
+	id, err := util.Hash(*identificationString)
 	util.MaybePanic(err)
 
 	return Family{

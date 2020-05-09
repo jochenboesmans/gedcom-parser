@@ -10,7 +10,7 @@ type Source struct {
 
 type SourceCorporation struct {
 	Name       string
-	Address    Address
+	Address    *Address
 	WebsiteURL string
 }
 
