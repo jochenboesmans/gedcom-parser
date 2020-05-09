@@ -17,13 +17,23 @@ import (
 )
 
 type OutputGedcom struct {
-	Persons       []model.Person
-	Familys       []model.Family
-	Childs        []model.Child
-	SourceRepos   []string
-	MasterSources []string
-	Medias        []string
-	FactTypes     []string
+	Persons             []model.Person
+	Familys             []model.Family
+	Childs              []model.Child
+	SourceRepos         []string
+	MasterSources       []model.Source
+	Medias              []string
+	FactTypes           []string
+	ReceivingSystemName string
+	TransmissionDate    string
+	SubmitterRecordId   string
+	FileName            string
+	Copyright           string
+	Metadata            model.GedcomMetadata
+	CharacterSet        model.CharacterSet
+	Language            string
+	PlaceHierarchy      string
+	ContentDescription  string
 }
 
 var monthNumberByAbbreviation = map[string]string{
@@ -44,10 +54,11 @@ var monthNumberByAbbreviation = map[string]string{
 func main() {
 	startTime := time.Now()
 
-	scenarioFlagPtr := flag.String("scenario", "sibling", "which gedcom to parse")
+	pathToGedcomFile := flag.String("pathToGedcomFile", "./test-input/hugetree.ged", "relative path to input gedcom file (with .ged extension if present)")
+	pathToJsonFile := flag.String("pathToJsonFile", "./artifacts/actual-hugetree.json", "relative path to output json file (with .json extension if wanted)")
 	flag.Parse()
 
-	file, err := os.Open("./test-input/" + *scenarioFlagPtr + ".ged")
+	file, err := os.Open(*pathToGedcomFile)
 	util.MaybePanic(err)
 	defer file.Close()
 
@@ -99,7 +110,7 @@ func main() {
 	}
 
 	gedcomJson, err := ffjson.Marshal(gedcomWithoutLock)
-	writeFile, err := os.Create("./artifacts/actual-" + *scenarioFlagPtr + ".json")
+	writeFile, err := os.Create(*pathToJsonFile)
 
 	writer := bufio.NewWriter(writeFile)
 	_, err = writer.Write(gedcomJson)
@@ -116,7 +127,8 @@ func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.
 		interpretPersonRecord(gedcom, currentRecordDeepLines, currentRecordLine)
 	case "FAM":
 		interpretFamilyRecord(gedcom, currentRecordDeepLines, currentRecordLine)
-		// case "HEAD":
+	case "HEAD":
+		interpretHeadRecord(gedcom, currentRecordDeepLines, currentRecordLine)
 		// case "NOTE":
 		// case "REPO":
 		// case "SOUR":
@@ -125,6 +137,155 @@ func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.
 		// case "TRLR":
 	}
 	waitGroup.Done()
+}
+
+func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
+	for i, line := range currentRecordDeepLines {
+		if i != 0 && line.Level() == 0 {
+			break
+		}
+		if line.Level() == 1 {
+			switch line.Tag() {
+			case "SOUR":
+				source := model.Source{
+					ApprovedSystemId: line.Value(),
+				}
+				for j, sourceLine := range currentRecordDeepLines[i+1:] {
+					if sourceLine.Level() < 2 {
+						break
+					}
+					switch sourceLine.Tag() {
+					case "VERS":
+						source.Version = sourceLine.Value()
+					case "NAME":
+						source.ProductName = sourceLine.Value()
+					case "CORP":
+						corporation := model.SourceCorporation{
+							Name: sourceLine.Value(),
+						}
+						for k, corpLine := range currentRecordDeepLines[i+1+j+1:] {
+							if corpLine.Level() < 3 {
+								break
+							}
+							switch corpLine.Tag() {
+							case "ADDR":
+								address := model.Address{
+									MainLine: sourceLine.Value(),
+								}
+								for _, addrLine := range currentRecordDeepLines[i+1+j+1+k+1:] {
+									if addrLine.Level() < 4 {
+										break
+									}
+									switch addrLine.Tag() {
+									case "CITY":
+										address.City = addrLine.Value()
+									case "POST":
+										address.PostCode = addrLine.Value()
+									case "CTRY":
+										address.Country = addrLine.Value()
+									}
+								}
+								corporation.Address = address
+							case "WWW":
+								corporation.WebsiteURL = corpLine.Value()
+							}
+						}
+						source.Corporation = corporation
+					}
+				}
+				gedcom.Lock.Lock()
+				gedcom.MasterSources = append(gedcom.MasterSources, source)
+				gedcom.Lock.Unlock()
+			case "DATE":
+				date := ""
+				dateParts := strings.SplitN(line.Value(), " ", 3)
+				if len(dateParts) >= 1 {
+					date = dateParts[0]
+				}
+				if len(dateParts) >= 2 {
+					date = monthNumberByAbbreviation[dateParts[1]] + "-" + date
+				}
+				if len(dateParts) >= 3 {
+					date = dateParts[2] + "-" + date
+				}
+
+				timeLine := currentRecordDeepLines[i+1]
+				date += "T" + timeLine.Value()
+
+				gedcom.Lock.Lock()
+				gedcom.TransmissionDate = date
+				gedcom.Lock.Unlock()
+			case "DEST":
+				gedcom.Lock.Lock()
+				gedcom.ReceivingSystemName = line.Value()
+				gedcom.Lock.Unlock()
+			case "SUBM":
+				gedcom.Lock.Lock()
+				// TODO: ID-ify xrefid (hash or whatever)
+				gedcom.SubmitterRecordId = line.Value()
+				gedcom.Lock.Unlock()
+			case "SUBN":
+				gedcom.Lock.Lock()
+				// TODO: ID-ify xrefid (hash or whatever)
+				gedcom.SubmissionRecordId = line.Value()
+				gedcom.Lock.Unlock()
+			case "FILE":
+				gedcom.Lock.Lock()
+				gedcom.FileName = line.Value()
+				gedcom.Lock.Unlock()
+			case "COPR":
+				gedcom.Lock.Lock()
+				gedcom.Copyright = line.Value()
+				gedcom.Lock.Unlock()
+			case "GEDC":
+				metadata := model.GedcomMetadata{}
+				for _, gedcLine := range currentRecordDeepLines[i+1:] {
+					if gedcLine.Level() < 2 {
+						break
+					}
+					switch gedcLine.Value() {
+					case "VERS":
+						metadata.Version = gedcLine.Value()
+					case "FORM":
+						metadata.Form = gedcLine.Value()
+					}
+				}
+				gedcom.Lock.Lock()
+				gedcom.Metadata = metadata
+				gedcom.Lock.Unlock()
+			case "CHAR":
+				characterSet := model.CharacterSet{
+					Value: line.Value(),
+				}
+				if len(currentRecordDeepLines) > i+1 {
+					characterSet.Version = currentRecordDeepLines[i+1].Value()
+				}
+				gedcom.Lock.Lock()
+				gedcom.CharacterSet = characterSet
+				gedcom.Lock.Unlock()
+			case "LANG":
+				gedcom.Lock.Lock()
+				gedcom.Language = line.Value()
+				gedcom.Lock.Unlock()
+			case "PLAC":
+				gedcom.Lock.Lock()
+				gedcom.PlaceHierarchy = line.Value()
+				gedcom.Lock.Unlock()
+			case "NOTE":
+				note := line.Value()
+				for _, noteLine := range currentRecordDeepLines[i+1:] {
+					switch noteLine.Tag() {
+					case "CONT":
+					case "CONC":
+						note += " " + noteLine.Value()
+					}
+				}
+				gedcom.Lock.Lock()
+				gedcom.ContentDescription = note
+				gedcom.Lock.Unlock()
+			}
+		}
+	}
 }
 
 func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
@@ -140,7 +301,7 @@ func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 					FactTypeId: 100,
 				}
 				for _, nameLine := range currentRecordDeepLines[i+1:] {
-					if nameLine.Level() == 0 {
+					if nameLine.Level() < 2 {
 						break
 					}
 					switch nameLine.Tag() {
@@ -205,9 +366,6 @@ func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 					case "TIME":
 						date += "T" + chanLine.Value()
 					}
-				}
-				if date != "" {
-					person.DateCreated = date
 				}
 			case "_UID":
 				person.PersonRef = line.Value()

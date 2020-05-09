@@ -3,14 +3,25 @@ package model
 import "sync"
 
 type Gedcom struct {
-	Lock          sync.RWMutex
-	Persons       []Person
-	Familys       []Family
-	Childs        []Child
-	SourceRepos   []string
-	MasterSources []string
-	Medias        []string
-	FactTypes     []string
+	Lock                sync.RWMutex
+	Persons             []Person
+	Familys             []Family
+	Childs              []Child
+	SourceRepos         []string
+	MasterSources       []Source
+	Medias              []string
+	FactTypes           []string
+	ReceivingSystemName string
+	TransmissionDate    string
+	SubmitterRecordId   string
+	SubmissionRecordId  string
+	FileName            string
+	Copyright           string
+	Metadata            GedcomMetadata
+	CharacterSet        CharacterSet
+	Language            string
+	PlaceHierarchy      string
+	ContentDescription  string
 }
 
 func NewGedcom() *Gedcom {
@@ -19,7 +30,7 @@ func NewGedcom() *Gedcom {
 		Familys:       []Family{},
 		Childs:        []Child{},
 		SourceRepos:   []string{},
-		MasterSources: []string{},
+		MasterSources: []Source{},
 		Medias:        []string{},
 		FactTypes:     []string{},
 	}
