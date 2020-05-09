@@ -10,8 +10,8 @@ type Person struct {
 	IsLiving    bool
 	Gender      uint8
 	DateCreated string
-	Names       []PersonName
-	Facts       []PersonFact
+	Names       []*PersonName
+	Facts       []*PersonFact
 }
 
 type PersonName struct {
@@ -31,15 +31,14 @@ type PersonPlace struct {
 	PlaceName string
 }
 
-func NewPerson(identificationString string) *Person {
-	id, err := util.Hash(identificationString)
+func NewPerson(identificationString *string) *Person {
+	id, err := util.Hash(*identificationString)
 	util.MaybePanic(err)
 
+	boolVar := true
 	// person is assumed living unless proven to be dead
 	return &Person{
 		Id:       id,
-		IsLiving: true,
-		Facts:    []PersonFact{},
-		Names:    []PersonName{},
+		IsLiving: boolVar,
 	}
 }

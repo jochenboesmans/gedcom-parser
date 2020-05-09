@@ -7,56 +7,77 @@ import (
 )
 
 type Line struct {
-	originalLine string
+	originalLine *string
+	levelMemo    *uint8
+	xRefIDMemo   *string
+	tagMemo      *string
+	valueMemo    *string
 }
 
-func NewLine(gedcomLine string) *Line {
+func NewLine(gedcomLinePtr *string) *Line {
 	return &Line{
-		originalLine: gedcomLine,
+		originalLine: gedcomLinePtr,
 	}
 }
 
-func (gedcomLine *Line) Level() uint8 {
-	line := gedcomLine.originalLine
-	parts := strings.SplitN(line, " ", 2)
+func (gedcomLine *Line) Level() *uint8 {
+	if gedcomLine.levelMemo != nil {
+		return gedcomLine.levelMemo
+	}
+	parts := strings.SplitN(*gedcomLine.originalLine, " ", 2)
 	level, err := strconv.Atoi(parts[0])
 	util.MaybePanic(err)
-	return uint8(level)
+	levelUint8 := uint8(level)
+	result := &levelUint8
+	gedcomLine.levelMemo = result
+	return result
 }
-func (gedcomLine *Line) XRefID() string {
-	line := gedcomLine.originalLine
-	parts := strings.SplitN(line, " ", 3)
-	if len(parts) >= 2 && parts[1][0] == '@' {
-		return parts[1]
+func (gedcomLine *Line) XRefID() *string {
+	if gedcomLine.xRefIDMemo != nil {
+		return gedcomLine.xRefIDMemo
 	}
-	return ""
+	parts := strings.SplitN(*gedcomLine.originalLine, " ", 3)
+	var result *string = nil
+	if len(parts) >= 2 && parts[1][0] == '@' {
+		result = &parts[1]
+	}
+	gedcomLine.xRefIDMemo = result
+	return result
 }
 
-func (gedcomLine *Line) Tag() string {
-	line := gedcomLine.originalLine
-	parts := strings.SplitN(line, " ", 4)
+func (gedcomLine *Line) Tag() *string {
+	if gedcomLine.tagMemo != nil {
+		return gedcomLine.tagMemo
+	}
+	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
+	var result *string = nil
 	if len(parts) >= 2 && parts[1][0] != '@' {
-		return parts[1]
+		result = &parts[1]
 	}
 	if len(parts) >= 3 && parts[1][0] == '@' {
-		return parts[2]
+		result = &parts[2]
 	}
-	return ""
+	gedcomLine.tagMemo = result
+	return result
 }
 
-func (gedcomLine *Line) Value() string {
-	line := gedcomLine.originalLine
-	parts := strings.SplitN(line, " ", 4)
+func (gedcomLine *Line) Value() *string {
+	if gedcomLine.valueMemo != nil {
+		return gedcomLine.valueMemo
+	}
+	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
+	var result *string = nil
 	if len(parts) == 3 && parts[1][0] != '@' {
-		return parts[2]
+		result = &parts[2]
 	}
 	if len(parts) == 4 {
 		if parts[1][0] == '@' {
-			return parts[3]
+			result = &parts[3]
 		} else {
 			lastParts := parts[2] + " " + parts[3]
-			return lastParts
+			result = &lastParts
 		}
 	}
-	return ""
+	gedcomLine.valueMemo = result
+	return result
 }

@@ -4,7 +4,7 @@ import "sync"
 
 type Gedcom struct {
 	Lock                sync.RWMutex
-	Persons             []Person
+	Persons             []*Person
 	Familys             []Family
 	Childs              []Child
 	SourceRepos         []string
@@ -26,7 +26,6 @@ type Gedcom struct {
 
 func NewGedcom() *Gedcom {
 	return &Gedcom{
-		Persons:       []Person{},
 		Familys:       []Family{},
 		Childs:        []Child{},
 		SourceRepos:   []string{},
