@@ -1,15 +1,12 @@
 package note
 
+import "github.com/jochenboesmans/gedcom-parser/model/shared"
+
 type Note struct {
 	Id                uint32
 	SubmitterText     string
-	UserReferences    []*UserReference
+	UserReferences    []*shared.UserReference
 	AutomatedRecordId string
-	SourceCitation    []*string
-	ChangeDate        string
-}
-
-type UserReference struct {
-	Number string
-	Type   string
+	SourceCitation    []*shared.SourceCitation
+	ChangeDate        *shared.ChangeDate
 }

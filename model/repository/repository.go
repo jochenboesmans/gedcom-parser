@@ -3,11 +3,11 @@ package repository
 import "github.com/jochenboesmans/gedcom-parser/model/shared"
 
 type Repository struct {
-	Id      uint32
-	Name    string
-	Address *shared.Address
-	//Note *shared.Note
-	//UserReference *shared.UserReference
+	Id                uint32
+	Name              string
+	Address           *shared.Address
+	Notes             []*shared.Note
+	UserReference     *shared.UserReference
 	AutomatedRecordId string
-	//ChangeDate *shared.ChangeDate
+	ChangeDate        *shared.ChangeDate
 }
