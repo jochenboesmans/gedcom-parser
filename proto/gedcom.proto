@@ -1,0 +1,34 @@
+syntax = "proto3";
+package gedcom;
+
+option go_package = "github.com/jochenboesmans/gedcom-parser";
+
+message Person {
+    uint32 Id = 1;
+    string PersonRef = 2;
+    bool IsLiving = 3;
+    GenderType Gender = 4;
+    string DateCreated = 5;
+    repeated PersonNameType Names = 6;
+    repeated PersonFactType Facts = 7;
+
+    enum GenderType {
+       MALE = 0;
+       FEMALE = 1;
+    }
+    message PersonNameType {
+        uint32 FactTypeId = 1;
+        string GivenNames = 2;
+        string Surnames = 3;
+    }
+    message PersonFactType {
+        uint32 FactTypeId = 1;
+        string DateDetail = 2;
+        PersonPlaceType PersonPlace = 3;
+        bool Preferred = 4;
+
+        message PersonPlaceType {
+            string PlaceName = 1;
+        }
+    }
+}

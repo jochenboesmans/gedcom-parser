@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"math"
 	"os"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
 	"github.com/jochenboesmans/gedcom-parser/model"
+	pb "github.com/jochenboesmans/gedcom-parser/proto"
 	"github.com/jochenboesmans/gedcom-parser/util"
 	"github.com/pquerna/ffjson/ffjson"
 )
@@ -56,8 +58,10 @@ var familyTime time.Duration
 var headTime time.Duration
 
 func main() {
-	pathToGedcomFile := flag.String("pathToGedcomFile", "./test-input/hugetree.ged", "relative path to input gedcom file (with .ged extension if present)")
-	pathToJsonFile := flag.String("pathToJsonFile", "./artifacts/hugetree.json", "relative path to output json file (with .json extension if wanted)")
+	beginTime := time.Now()
+	pathToGedcomFile := flag.String("pathToGedcomFile", "./test-input/ITIS.ged", "relative path to input gedcom file (with .ged extension if present)")
+	pathToJsonFile := flag.String("pathToJsonFile", "./artifacts/ITIS.json", "relative path to output json file (with .json extension if wanted)")
+	useProtobuf := flag.Bool("useProtobuf", false, "whether to use protobuf instead of json as serialization format")
 	flag.Parse()
 
 	file, err := os.Open(*pathToGedcomFile)
@@ -103,7 +107,7 @@ func main() {
 	fmt.Printf("interpreted head in %f second.\n", float64(headTime)*math.Pow10(-9))
 	fmt.Printf("interpreted persons in %f second.\n", float64(personTime)*math.Pow10(-9))
 	fmt.Printf("interpreted familys in %f second.\n", float64(familyTime)*math.Pow10(-9))
-	writeJsonTime := time.Now()
+	writeTime := time.Now()
 
 	gedcomWithoutLock := OutputGedcom{
 		Persons:       gedcom.Persons,
@@ -115,16 +119,33 @@ func main() {
 		FactTypes:     gedcom.FactTypes,
 	}
 
-	gedcomJson, err := ffjson.Marshal(gedcomWithoutLock)
-	writeFile, err := os.Create(*pathToJsonFile)
+	if !*useProtobuf {
+		gedcomJson, err := ffjson.Marshal(gedcomWithoutLock)
+		writeFile, err := os.Create(*pathToJsonFile)
+		writer := bufio.NewWriter(writeFile)
+		_, err = writer.Write(gedcomJson)
+		util.MaybePanic(err)
+		err = writer.Flush()
+		util.MaybePanic(err)
+	} else {
+		person := &pb.Person{
+			Id:        gedcom.Persons[0].Id,
+			PersonRef: gedcom.Persons[0].PersonRef,
+			IsLiving:  gedcom.Persons[0].IsLiving,
+		}
 
-	writer := bufio.NewWriter(writeFile)
-	_, err = writer.Write(gedcomJson)
-	util.MaybePanic(err)
-	err = writer.Flush()
-	util.MaybePanic(err)
+		personProto, err := proto.Marshal(person)
+		personWriteFile, err := os.Create("./artifacts/personproto")
 
-	fmt.Printf("wrote json in %f second.\n", float64(time.Since(writeJsonTime))*math.Pow10(-9))
+		personWriter := bufio.NewWriter(personWriteFile)
+		_, err = personWriter.Write(personProto)
+		util.MaybePanic(err)
+		err = personWriter.Flush()
+		util.MaybePanic(err)
+	}
+
+	fmt.Printf("wrote to file in %f second.\n", float64(time.Since(writeTime))*math.Pow10(-9))
+	fmt.Printf("total time taken: %f second.\n", float64(time.Since(beginTime))*math.Pow10(-9))
 }
 
 func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line, waitGroup *sync.WaitGroup) {
