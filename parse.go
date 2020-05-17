@@ -8,7 +8,11 @@ import (
 	"github.com/jochenboesmans/gedcom-parser/model/child"
 	"github.com/jochenboesmans/gedcom-parser/model/family"
 	"github.com/jochenboesmans/gedcom-parser/model/header"
+	"github.com/jochenboesmans/gedcom-parser/model/note"
 	"github.com/jochenboesmans/gedcom-parser/model/person"
+	"github.com/jochenboesmans/gedcom-parser/model/shared"
+
+	//"github.com/jochenboesmans/gedcom-parser/model/repository"
 	"math"
 	"os"
 	"strings"
@@ -23,23 +27,13 @@ import (
 )
 
 type OutputGedcom struct {
-	Persons             []*person.Person
-	Familys             []*family.Family
-	Childs              []*child.Child
-	SourceRepos         []string
-	MasterSources       []*header.Source
-	Medias              []string
-	FactTypes           []string
-	ReceivingSystemName string
-	TransmissionDate    string
-	SubmitterRecordId   string
-	FileName            string
-	Copyright           string
-	Metadata            header.GedcomMetadata
-	CharacterSet        header.CharacterSet
-	Language            string
-	PlaceHierarchy      string
-	ContentDescription  *string
+	Persons []*person.Person
+	Familys []*family.Family
+	Childs  []*child.Child
+	Notes   []*note.Note
+	//Repositorys []*repository.Repository
+	FactTypes []string
+	Header    header.Header
 }
 
 var monthNumberByAbbreviation = map[string]string{
@@ -114,13 +108,11 @@ func main() {
 	writeTime := time.Now()
 
 	gedcomWithoutLock := OutputGedcom{
-		Persons:       gedcom.Persons,
-		Childs:        gedcom.Childs,
-		Familys:       gedcom.Familys,
-		SourceRepos:   gedcom.SourceRepos,
-		MasterSources: gedcom.MasterSources,
-		Medias:        gedcom.Medias,
-		FactTypes:     gedcom.FactTypes,
+		Persons:   gedcom.Persons,
+		Childs:    gedcom.Childs,
+		Familys:   gedcom.Familys,
+		FactTypes: gedcom.FactTypes,
+		Notes:     gedcom.Notes,
 	}
 
 	if !*useProtobuf {
@@ -160,14 +152,56 @@ func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.
 		interpretPersonRecord(gedcom, currentRecordDeepLines, currentRecordLine)
 	case "FAM":
 		interpretFamilyRecord(gedcom, currentRecordDeepLines, currentRecordLine)
-		// case "NOTE":
-		// case "REPO":
-		// case "SOUR":
-		// case "SUBN":
-		// case "SUBM":
-		// case "TRLR":
+	case "NOTE":
+		interpretNoteRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+	case "REPO":
+		//interpretRepoRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+	case "SOUR":
+		//interpretSourceRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+	case "SUBN":
+		//interpretSubmitterRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+	case "SUBM":
+		//interpretSubmissionRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+	case "TRLR":
+		//interpretTrailer(gedcom, currentRecordDeepLines, currentRecordLine)
 	}
 	waitGroup.Done()
+}
+
+func interpretNoteRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
+	n := note.Note{
+		SubmitterText:  *currentRecordDeepLines[0].Value(),
+		UserReferences: []*note.UserReference{},
+	}
+	for i, line := range currentRecordDeepLines {
+		if i != 0 && *line.Level() == 0 {
+			break
+		}
+		if *line.Level() == 1 {
+			switch *line.Tag() {
+			case "CONC":
+			case "CONT":
+				n.SubmitterText += *line.Value()
+			case "REFN":
+				reference := note.UserReference{
+					Number: *line.Value(),
+				}
+				for _, noteLine := range currentRecordDeepLines[i+1:] {
+					if *noteLine.Level() < 2 {
+						break
+					}
+					switch *noteLine.Tag() {
+					case "TYPE":
+						reference.Type = *line.Value()
+					}
+				}
+				n.UserReferences = append(n.UserReferences, &reference)
+			case "RIN":
+				n.AutomatedRecordId = *line.Value()
+				// TODO: sourcecitation and changedate
+			}
+		}
+	}
 }
 
 func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
@@ -208,7 +242,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 								switch *corpLine.Tag() {
 								case "ADDR":
 									if corpLine.Value() != nil {
-										address := header.Address{
+										address := shared.PhysicalAddress{
 											MainLine: *corpLine.Value(),
 										}
 										for _, addrLine := range currentRecordDeepLines[i+1+j+1+k+1:] {

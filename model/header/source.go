@@ -1,5 +1,7 @@
 package header
 
+import "github.com/jochenboesmans/gedcom-parser/model/shared"
+
 type Source struct {
 	ApprovedSystemId string
 	Version          string
@@ -10,7 +12,7 @@ type Source struct {
 
 type Corporation struct {
 	Name       string
-	Address    *Address
+	Address    *shared.PhysicalAddress
 	WebsiteURL string
 }
 
@@ -18,11 +20,4 @@ type Data struct {
 	Name            string
 	PublicationDate string
 	Copyright       string
-}
-
-type Address struct {
-	MainLine string
-	City     string
-	PostCode string
-	Country  string
 }
