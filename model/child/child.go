@@ -1,4 +1,4 @@
-package model
+package child
 
 import (
 	"github.com/jochenboesmans/gedcom-parser/util"

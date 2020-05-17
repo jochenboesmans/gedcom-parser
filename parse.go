@@ -5,6 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"github.com/jochenboesmans/gedcom-parser/model/child"
+	"github.com/jochenboesmans/gedcom-parser/model/family"
+	"github.com/jochenboesmans/gedcom-parser/model/header"
+	"github.com/jochenboesmans/gedcom-parser/model/person"
 	"math"
 	"os"
 	"strings"
@@ -19,11 +23,11 @@ import (
 )
 
 type OutputGedcom struct {
-	Persons             []*model.Person
-	Familys             []*model.Family
-	Childs              []*model.Child
+	Persons             []*person.Person
+	Familys             []*family.Family
+	Childs              []*child.Child
 	SourceRepos         []string
-	MasterSources       []*model.Source
+	MasterSources       []*header.Source
 	Medias              []string
 	FactTypes           []string
 	ReceivingSystemName string
@@ -31,8 +35,8 @@ type OutputGedcom struct {
 	SubmitterRecordId   string
 	FileName            string
 	Copyright           string
-	Metadata            model.GedcomMetadata
-	CharacterSet        model.CharacterSet
+	Metadata            header.GedcomMetadata
+	CharacterSet        header.CharacterSet
 	Language            string
 	PlaceHierarchy      string
 	ContentDescription  *string
@@ -168,6 +172,7 @@ func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.
 
 func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
 	startTime := time.Now()
+	h := header.Header{}
 	for i, line := range currentRecordDeepLines {
 		if i != 0 && *line.Level() == 0 {
 			break
@@ -175,7 +180,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 		if *line.Level() == 1 {
 			switch *line.Tag() {
 			case "SOUR":
-				source := model.Source{
+				source := header.Source{
 					ApprovedSystemId: *line.Value(),
 				}
 				for j, sourceLine := range currentRecordDeepLines[i+1:] {
@@ -193,7 +198,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 						}
 					case "CORP":
 						if sourceLine.Value() != nil {
-							corporation := model.SourceCorporation{
+							corporation := header.Corporation{
 								Name: *sourceLine.Value(),
 							}
 							for k, corpLine := range currentRecordDeepLines[i+1+j+1:] {
@@ -203,7 +208,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 								switch *corpLine.Tag() {
 								case "ADDR":
 									if corpLine.Value() != nil {
-										address := model.Address{
+										address := header.Address{
 											MainLine: *corpLine.Value(),
 										}
 										for _, addrLine := range currentRecordDeepLines[i+1+j+1+k+1:] {
@@ -233,13 +238,11 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 									}
 								}
 							}
-							source.Corporation = corporation
+							source.Corporation = &corporation
 						}
 					}
 				}
-				gedcom.Lock.Lock()
-				gedcom.MasterSources = append(gedcom.MasterSources, &source)
-				gedcom.Lock.Unlock()
+				h.Source = &source
 			case "DATE":
 				if line.Value() != nil {
 					date := ""
@@ -259,44 +262,31 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 						date += "T" + *timeLine.Value()
 					}
 
-					gedcom.Lock.Lock()
-					gedcom.TransmissionDate = date
-					gedcom.Lock.Unlock()
+					h.TransmissionDate = date
 				}
 			case "DEST":
 				if line.Value() != nil {
-					gedcom.Lock.Lock()
-					gedcom.ReceivingSystemName = *line.Value()
-					gedcom.Lock.Unlock()
+					h.ReceivingSystemName = *line.Value()
 				}
 			case "SUBM":
 				if line.Value() != nil {
-					gedcom.Lock.Lock()
+					h.SubmitterRecordId = *line.Value()
 					// TODO: ID-ify xrefid (hash or whatever)
-					gedcom.SubmitterRecordId = *line.Value()
-					gedcom.Lock.Unlock()
 				}
 			case "SUBN":
 				if line.Value() != nil {
-					gedcom.Lock.Lock()
-					// TODO: ID-ify xrefid (hash or whatever)
-					gedcom.SubmissionRecordId = *line.Value()
-					gedcom.Lock.Unlock()
+					h.SubmissionRecordId = *line.Value()
 				}
 			case "FILE":
 				if line.Value() != nil {
-					gedcom.Lock.Lock()
-					gedcom.FileName = *line.Value()
-					gedcom.Lock.Unlock()
+					h.FileName = *line.Value()
 				}
 			case "COPR":
 				if line.Value() != nil {
-					gedcom.Lock.Lock()
-					gedcom.Copyright = *line.Value()
-					gedcom.Lock.Unlock()
+					h.Copyright = *line.Value()
 				}
 			case "GEDC":
-				metadata := model.GedcomMetadata{}
+				metadata := header.GedcomMetadata{}
 				for _, gedcLine := range currentRecordDeepLines[i+1:] {
 					if *gedcLine.Level() < 2 {
 						break
@@ -308,32 +298,24 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 						metadata.Form = *gedcLine.Value()
 					}
 				}
-				gedcom.Lock.Lock()
-				gedcom.Metadata = metadata
-				gedcom.Lock.Unlock()
+				h.Metadata = metadata
 			case "CHAR":
 				if line.Value() != nil {
-					characterSet := model.CharacterSet{
+					characterSet := header.CharacterSet{
 						Value: *line.Value(),
 					}
 					if len(currentRecordDeepLines) > i+1 {
 						characterSet.Version = *currentRecordDeepLines[i+1].Value()
 					}
-					gedcom.Lock.Lock()
-					gedcom.CharacterSet = characterSet
-					gedcom.Lock.Unlock()
+					h.CharacterSet = characterSet
 				}
 			case "LANG":
 				if line.Value() != nil {
-					gedcom.Lock.Lock()
-					gedcom.Language = *line.Value()
-					gedcom.Lock.Unlock()
+					h.Language = *line.Value()
 				}
 			case "PLAC":
 				if line.Value() != nil {
-					gedcom.Lock.Lock()
-					gedcom.PlaceHierarchy = *line.Value()
-					gedcom.Lock.Unlock()
+					h.PlaceHierarchy = *line.Value()
 				}
 			case "NOTE":
 				if line.Value() != nil {
@@ -347,9 +329,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 							}
 						}
 					}
-					gedcom.Lock.Lock()
-					gedcom.ContentDescription = &note
-					gedcom.Lock.Unlock()
+					h.ContentDescription = note
 				}
 			}
 		}
@@ -359,7 +339,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 
 func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
 	startTime := time.Now()
-	personPtr := model.NewPerson(currentRecordLine.XRefID())
+	personPtr := person.NewPerson(currentRecordLine.XRefID())
 	for i, line := range currentRecordDeepLines {
 		if i != 0 && *line.Level() == 0 {
 			break
@@ -367,7 +347,7 @@ func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 		if *line.Level() == 1 {
 			switch *line.Tag() {
 			case "NAME":
-				name := model.PersonName{
+				name := person.PersonName{
 					FactTypeId: 100,
 				}
 				for _, nameLine := range currentRecordDeepLines[i+1:] {
@@ -385,7 +365,7 @@ func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 					personPtr.Names = append(personPtr.Names, &name)
 				}
 			case "BIRT":
-				birthFact := model.PersonFact{
+				birthFact := person.PersonFact{
 					FactTypeId: 405,
 				}
 				for _, birthFactLine := range currentRecordDeepLines[i+1:] {
@@ -407,7 +387,7 @@ func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 							birthFact.DateDetail = *birthFactLine.Value()
 						}
 					case "PLAC":
-						place := model.PersonPlace{}
+						place := person.PersonPlace{}
 						if birthFactLine.Value() != nil {
 							place.PlaceName = *birthFactLine.Value()
 						}
@@ -465,7 +445,7 @@ func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 
 func interpretFamilyRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
 	startTime := time.Now()
-	family := model.NewFamily(currentRecordLine.XRefID())
+	family := family.NewFamily(currentRecordLine.XRefID())
 	for i, line := range currentRecordDeepLines {
 		if i != 0 && *line.Level() == 0 {
 			break
@@ -522,7 +502,7 @@ func interpretFamilyRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 	}
 
 	for i, childId := range family.ChildIds {
-		child := model.NewChild(currentRecordLine.XRefID(), i, childId)
+		child := child.NewChild(currentRecordLine.XRefID(), i, childId)
 		if family.MotherId != 0 {
 			child.RelationshipToMother = 1
 		}

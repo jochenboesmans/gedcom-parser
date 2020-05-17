@@ -1,37 +1,34 @@
 package model
 
-import "sync"
+import (
+	"github.com/jochenboesmans/gedcom-parser/model/child"
+	"github.com/jochenboesmans/gedcom-parser/model/family"
+	"github.com/jochenboesmans/gedcom-parser/model/header"
+	"github.com/jochenboesmans/gedcom-parser/model/person"
+	"sync"
+)
 
 type Gedcom struct {
-	Lock                sync.RWMutex
-	Persons             []*Person
-	Familys             []*Family
-	Childs              []*Child
-	SourceRepos         []string
-	MasterSources       []*Source
-	Medias              []string
-	FactTypes           []string
-	ReceivingSystemName string
-	TransmissionDate    string
-	SubmitterRecordId   string
-	SubmissionRecordId  string
-	FileName            string
-	Copyright           string
-	Metadata            GedcomMetadata
-	CharacterSet        CharacterSet
-	Language            string
-	PlaceHierarchy      string
-	ContentDescription  *string
+	Lock          sync.RWMutex
+	Persons       []*person.Person
+	Familys       []*family.Family
+	Childs        []*child.Child
+	SourceRepos   []string
+	MasterSources []*header.Source
+	Medias        []string
+	FactTypes     []string
+	Header        header.Header
 }
 
 func NewGedcom() *Gedcom {
 	return &Gedcom{
-		Persons:       []*Person{},
-		Familys:       []*Family{},
-		Childs:        []*Child{},
+		Persons:       []*person.Person{},
+		Familys:       []*family.Family{},
+		Childs:        []*child.Child{},
 		SourceRepos:   []string{},
-		MasterSources: []*Source{},
+		MasterSources: []*header.Source{},
 		Medias:        []string{},
 		FactTypes:     []string{},
+		Header:        header.Header{},
 	}
 }

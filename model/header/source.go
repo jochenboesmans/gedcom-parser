@@ -1,20 +1,20 @@
-package model
+package header
 
 type Source struct {
 	ApprovedSystemId string
 	Version          string
 	ProductName      string
-	Corporation      SourceCorporation
-	Data             SourceData
+	Corporation      *Corporation
+	Data             *Data
 }
 
-type SourceCorporation struct {
+type Corporation struct {
 	Name       string
 	Address    *Address
 	WebsiteURL string
 }
 
-type SourceData struct {
+type Data struct {
 	Name            string
 	PublicationDate string
 	Copyright       string

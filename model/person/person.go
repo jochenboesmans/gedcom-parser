@@ -1,4 +1,4 @@
-package model
+package person
 
 import (
 	"github.com/jochenboesmans/gedcom-parser/util"
