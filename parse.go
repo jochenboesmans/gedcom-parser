@@ -646,7 +646,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 						date = dateParts[0]
 					}
 					if len(dateParts) >= 2 {
-						date = monthNumberByAbbreviation[dateParts[1]] + "-" + date
+						date = monthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
 					}
 					if len(dateParts) >= 3 {
 						date = dateParts[2] + "-" + date
@@ -818,7 +818,7 @@ func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 								date = dateParts[0]
 							}
 							if len(dateParts) >= 2 {
-								date = monthNumberByAbbreviation[dateParts[1]] + "-" + date
+								date = monthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
 							}
 							if len(dateParts) >= 3 {
 								date = dateParts[2] + "-" + date
@@ -882,7 +882,7 @@ func interpretFamilyRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 							date = dateParts[0]
 						}
 						if len(dateParts) >= 2 {
-							date = monthNumberByAbbreviation[dateParts[1]] + "-" + date
+							date = monthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
 						}
 						if len(dateParts) >= 3 {
 							date = dateParts[2] + "-" + date
