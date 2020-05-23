@@ -174,7 +174,7 @@ func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.
 	case "REPO":
 		interpretRepoRecord(gedcom, currentRecordDeepLines)
 	case "SOUR":
-		//interpretSourceRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+		interpretSourceRecord(gedcom, currentRecordDeepLines)
 	case "SUBN":
 		interpretSubmitterRecord(gedcom, currentRecordDeepLines)
 	case "SUBM":
@@ -182,6 +182,131 @@ func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.
 		//case "TRLR": nothing really to do here except maybe validate?
 	}
 	waitGroup.Done()
+}
+
+func interpretSourceRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+	baseLevel := *currentRecordDeepLines[0].Level()
+	idString := *currentRecordDeepLines[0].XRefID()
+	id, err := util.Hash(idString)
+	util.MaybePanic(err)
+	s := source.Source{
+		Id: id,
+	}
+	for i, line := range currentRecordDeepLines[1:] {
+		if *line.Level() <= baseLevel {
+			break
+		}
+		switch *line.Tag() {
+		case "DATA":
+			d := source.Data{
+				Events: []*source.Event{},
+			}
+			for j, dataLine := range currentRecordDeepLines[1+i+1:] {
+				if *dataLine.Level() <= baseLevel+1 {
+					break
+				}
+				switch *dataLine.Tag() {
+				case "EVEN":
+					e := source.Event{
+						AttributeTypes: *dataLine.Value(),
+					}
+					for _, eventLine := range currentRecordDeepLines[1+i+1+j+1:] {
+						if *eventLine.Level() <= baseLevel+2 {
+							break
+						}
+						switch *eventLine.Tag() {
+						case "DATE":
+							e.DatePeriod = *eventLine.Value()
+						case "PLAC":
+							e.JurisdictionPlace = *eventLine.Value()
+						}
+					}
+					d.Events = append(d.Events, &e)
+				case "AGNC":
+					d.ResponsibleAgency = *dataLine.Value()
+					//case "NOTE":
+					//	interpretNoteStructure
+				}
+			}
+			s.Data = &d
+		case "AUTH":
+			o := *line.Value()
+			for _, authLine := range currentRecordDeepLines[1+i+1:] {
+				if *authLine.Level() <= baseLevel+1 {
+					break
+				}
+				switch *authLine.Tag() {
+				case "CONC":
+				case "CONT":
+					o += " " + *authLine.Value()
+				}
+			}
+			s.Originator = o
+		case "TITL":
+			t := *line.Value()
+			for _, titleLine := range currentRecordDeepLines[1+i+1:] {
+				if *titleLine.Level() <= baseLevel+1 {
+					break
+				}
+				switch *titleLine.Tag() {
+				case "CONC":
+				case "CONT":
+					t += " " + *titleLine.Value()
+				}
+			}
+			s.DescriptiveTitle = t
+		case "ABBR":
+			s.FiledByEntry = *line.Value()
+		case "PUBL":
+			p := *line.Value()
+			for _, publicationLine := range currentRecordDeepLines[1+i+1:] {
+				if *publicationLine.Level() <= baseLevel+1 {
+					break
+				}
+				switch *publicationLine.Tag() {
+				case "CONC":
+				case "CONT":
+					p += " " + *publicationLine.Value()
+				}
+			}
+			s.PublicationFacts = p
+		case "TEXT":
+			t := *line.Value()
+			for _, textLine := range currentRecordDeepLines[1+i+1:] {
+				if *textLine.Level() <= baseLevel+1 {
+					break
+				}
+				switch *textLine.Tag() {
+				case "CONC":
+				case "CONT":
+					t += " " + *textLine.Value()
+				}
+			}
+			s.PublicationFacts = t
+		// case "REPO":
+		// interpretSourceRepositoryCitation
+		case "REFN":
+			r := shared.UserReference{
+				Number: *line.Value(),
+			}
+			for _, refLine := range currentRecordDeepLines[1+i+1:] {
+				if *refLine.Level() <= baseLevel+1 {
+					break
+				}
+				switch *refLine.Tag() {
+				case "TYPE":
+					r.Type = *refLine.Value()
+				}
+			}
+			s.UserReferences = append(s.UserReferences, &r)
+		case "RIN":
+			s.AutomatedRecordId = *line.Value()
+			//TODO: changedate, notestructure, multimedialink
+		}
+	}
+	gedcom.Lock.Lock()
+	gedcom.Sources = append(gedcom.Sources, &s)
+	gedcom.Lock.Unlock()
 }
 
 func interpretMultimediaRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
