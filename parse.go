@@ -10,7 +10,12 @@ import (
 	"github.com/jochenboesmans/gedcom-parser/model/header"
 	"github.com/jochenboesmans/gedcom-parser/model/note"
 	"github.com/jochenboesmans/gedcom-parser/model/person"
+	"github.com/jochenboesmans/gedcom-parser/model/repository"
 	"github.com/jochenboesmans/gedcom-parser/model/shared"
+	"github.com/jochenboesmans/gedcom-parser/model/source"
+	"github.com/jochenboesmans/gedcom-parser/model/submission"
+	"github.com/jochenboesmans/gedcom-parser/model/submitter"
+	"strconv"
 
 	//"github.com/jochenboesmans/gedcom-parser/model/repository"
 	"math"
@@ -27,13 +32,15 @@ import (
 )
 
 type OutputGedcom struct {
-	Persons []*person.Person
-	Familys []*family.Family
-	Childs  []*child.Child
-	Notes   []*note.Note
-	//Repositorys []*repository.Repository
-	FactTypes []string
-	Header    header.Header
+	Header      *header.Header
+	Submission  *submission.Submission
+	Persons     []*person.Person
+	Familys     []*family.Family
+	Childs      []*child.Child
+	Notes       []*note.Note
+	Repositorys []*repository.Repository
+	Sources     []*source.Source
+	Submitters  []*submitter.Submitter
 }
 
 var monthNumberByAbbreviation = map[string]string{
@@ -108,11 +115,15 @@ func main() {
 	writeTime := time.Now()
 
 	gedcomWithoutLock := OutputGedcom{
-		Persons:   gedcom.Persons,
-		Childs:    gedcom.Childs,
-		Familys:   gedcom.Familys,
-		FactTypes: gedcom.FactTypes,
-		Notes:     gedcom.Notes,
+		Header:      gedcom.Header,
+		Submission:  gedcom.Submission,
+		Persons:     gedcom.Persons,
+		Familys:     gedcom.Familys,
+		Childs:      gedcom.Childs,
+		Notes:       gedcom.Notes,
+		Repositorys: gedcom.Repositorys,
+		Sources:     gedcom.Sources,
+		Submitters:  gedcom.Submitters,
 	}
 
 	if !*useProtobuf {
@@ -124,13 +135,14 @@ func main() {
 		err = writer.Flush()
 		util.MaybePanic(err)
 	} else {
-		person := &pb.Person{
+		// WIP: needs full gedcom protobuf structure to be built
+		pbPerson := &pb.Person{
 			Id:        gedcom.Persons[0].Id,
 			PersonRef: gedcom.Persons[0].PersonRef,
 			IsLiving:  gedcom.Persons[0].IsLiving,
 		}
 
-		personProto, err := proto.Marshal(person)
+		personProto, err := proto.Marshal(pbPerson)
 		personWriteFile, err := os.Create("./artifacts/personproto")
 
 		personWriter := bufio.NewWriter(personWriteFile)
@@ -153,28 +165,177 @@ func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.
 	case "FAM":
 		interpretFamilyRecord(gedcom, currentRecordDeepLines, currentRecordLine)
 	case "NOTE":
-		interpretNoteRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+		interpretNoteRecord(gedcom, currentRecordDeepLines)
 	case "REPO":
-		//interpretRepoRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+		interpretRepoRecord(gedcom, currentRecordDeepLines)
 	case "SOUR":
 		//interpretSourceRecord(gedcom, currentRecordDeepLines, currentRecordLine)
 	case "SUBN":
-		//interpretSubmitterRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+		interpretSubmitterRecord(gedcom, currentRecordDeepLines)
 	case "SUBM":
-		//interpretSubmissionRecord(gedcom, currentRecordDeepLines, currentRecordLine)
-	case "TRLR":
-		//interpretTrailer(gedcom, currentRecordDeepLines, currentRecordLine)
+		interpretSubmissionRecord(gedcom, currentRecordDeepLines)
+		//case "TRLR": nothing really to do here except maybe validate?
 	}
 	waitGroup.Done()
 }
 
-func interpretNoteRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
-	n := note.Note{
-		SubmitterText:  *currentRecordDeepLines[0].Value(),
-		UserReferences: []*note.UserReference{},
+func interpretSubmitterRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+	baseLevel := *currentRecordDeepLines[0].Level()
+	idString := *currentRecordDeepLines[0].XRefID()
+	id, err := util.Hash(idString)
+	util.MaybePanic(err)
+	s := submitter.Submitter{
+		Id: id,
 	}
-	for i, line := range currentRecordDeepLines {
-		if i != 0 && *line.Level() == 0 {
+	for _, line := range currentRecordDeepLines[1:] {
+		if *line.Level() <= baseLevel {
+			break
+		}
+		switch *line.Tag() {
+		case "NAME":
+			s.Name = *line.Value()
+		//case "ADDR":
+		// interpretAddressStructure
+		//case "OBJE":
+		// interpretMultimediaLink
+		case "LANG":
+			s.LanguagePreference = append(s.LanguagePreference, *line.Value())
+		case "RFN":
+			s.SubmitterRegisteredRFN = *line.Value()
+		case "RIN":
+			s.AutomatedRecordId = *line.Value()
+			//case "NOTE":
+			//interpretNoteStructure
+			//case "CHAN":
+			// interpretChangeDate
+		}
+	}
+	gedcom.Lock.Lock()
+	gedcom.Submitters = append(gedcom.Submitters, &s)
+	gedcom.Lock.Unlock()
+}
+
+func interpretSubmissionRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+	baseLevel := *currentRecordDeepLines[0].Level()
+	idString := *currentRecordDeepLines[0].XRefID()
+	id, err := util.Hash(idString)
+	util.MaybePanic(err)
+	s := submission.Submission{
+		Id: id,
+	}
+	for _, line := range currentRecordDeepLines[1:] {
+		if *line.Level() <= baseLevel {
+			break
+		}
+		switch *line.Tag() {
+		case "SUBM":
+			submitterIdString := *line.Value()
+			submitterId, err := util.Hash(submitterIdString)
+			util.MaybePanic(err)
+			s.SubmitterId = submitterId
+		case "FAMF":
+			s.NameOfFamilyFile = *line.Value()
+		case "TEMP":
+			s.TempleCode = *line.Value()
+		case "ANCE":
+			gensString := *line.Value()
+			gensInt, err := strconv.ParseUint(gensString, 10, 32)
+			util.MaybePanic(err)
+			s.GenerationsOfAncestors = uint32(gensInt)
+		case "DESC":
+			gensString := *line.Value()
+			gensInt, err := strconv.ParseUint(gensString, 10, 32)
+			util.MaybePanic(err)
+			s.GenerationsOfDescendants = uint32(gensInt)
+		case "ORDI":
+			switch strings.ToUpper(*line.Value()) {
+			case "YES":
+				s.OrdinanceProcessFlag = true
+			case "NO":
+				s.OrdinanceProcessFlag = false
+			}
+		case "RIN":
+			s.AutomatedRecordId = *line.Value()
+			//case "NOTE":
+			//interpretNoteStructure
+			//case "CHAN":
+			// interpretChangeDate
+		}
+	}
+	gedcom.Lock.Lock()
+	gedcom.Submission = &s
+	gedcom.Lock.Unlock()
+}
+
+func interpretRepoRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+	idString := *currentRecordDeepLines[0].XRefID()
+	id, err := util.Hash(idString)
+	util.MaybePanic(err)
+	r := repository.Repository{
+		Id:      id,
+		Address: &shared.Address{},
+	}
+	for i, line := range currentRecordDeepLines[1:] {
+		if *line.Level() == 0 {
+			break
+		}
+		if *line.Level() == 1 {
+			switch *line.Tag() {
+			case "NAME":
+				r.Name = *line.Value()
+			case "ADDR":
+				if line.Value() != nil {
+					physicalAddress := shared.PhysicalAddress{
+						MainLine: *line.Value(),
+					}
+					for _, addrLine := range currentRecordDeepLines[i+1:] {
+						if *addrLine.Level() < 2 {
+							break
+						}
+						switch *addrLine.Tag() {
+						case "CONT":
+							physicalAddress.MainLine = physicalAddress.MainLine + " " + *addrLine.Value()
+						case "ADR1":
+							physicalAddress.Line1 = *addrLine.Value()
+						case "ADR2":
+							physicalAddress.Line2 = *addrLine.Value()
+						case "ADR3":
+							physicalAddress.Line3 = *addrLine.Value()
+						case "CITY":
+							physicalAddress.City = *addrLine.Value()
+						case "POST":
+							physicalAddress.PostCode = *addrLine.Value()
+						case "CTRY":
+							physicalAddress.Country = *addrLine.Value()
+						}
+					}
+					r.Address.PhysicalAddress = &physicalAddress
+				}
+			case "PHON":
+				r.Address.PhoneNumber = append(r.Address.PhoneNumber, line.Value())
+			case "EMAIL":
+				r.Address.Email = append(r.Address.Email, line.Value())
+			case "FAX":
+				r.Address.Fax = append(r.Address.Fax, line.Value())
+			case "WWW":
+				r.Address.WebPage = append(r.Address.WebPage, line.Value())
+			}
+		}
+	}
+	gedcom.Repositorys = append(gedcom.Repositorys, &r)
+}
+
+func interpretNoteRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+	idString := *currentRecordDeepLines[0].XRefID()
+	id, err := util.Hash(idString)
+	util.MaybePanic(err)
+	n := note.Note{
+		Id:             id,
+		SubmitterText:  *currentRecordDeepLines[0].Value(),
+		UserReferences: []*shared.UserReference{},
+	}
+	for i, line := range currentRecordDeepLines[1:] {
+		if *line.Level() == 0 {
 			break
 		}
 		if *line.Level() == 1 {
@@ -183,7 +344,7 @@ func interpretNoteRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 			case "CONT":
 				n.SubmitterText += *line.Value()
 			case "REFN":
-				reference := note.UserReference{
+				reference := shared.UserReference{
 					Number: *line.Value(),
 				}
 				for _, noteLine := range currentRecordDeepLines[i+1:] {
@@ -202,6 +363,9 @@ func interpretNoteRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 			}
 		}
 	}
+	gedcom.Lock.Lock()
+	gedcom.Notes = append(gedcom.Notes, &n)
+	gedcom.Lock.Unlock()
 }
 
 func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
@@ -369,6 +533,10 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 		}
 	}
 	headTime += time.Since(startTime)
+
+	gedcom.Lock.Lock()
+	gedcom.Header = &h
+	gedcom.Lock.Unlock()
 }
 
 func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {

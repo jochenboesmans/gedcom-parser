@@ -7,6 +7,6 @@ type Note struct {
 	SubmitterText     string
 	UserReferences    []*shared.UserReference
 	AutomatedRecordId string
-	SourceCitation    []*shared.SourceCitation
-	ChangeDate        *shared.ChangeDate
+	//SourceCitation    []*shared.SourceCitation
+	ChangeDate *shared.ChangeDate
 }
