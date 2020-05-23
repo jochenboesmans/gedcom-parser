@@ -4,6 +4,7 @@ import (
 	"github.com/jochenboesmans/gedcom-parser/model/child"
 	"github.com/jochenboesmans/gedcom-parser/model/family"
 	"github.com/jochenboesmans/gedcom-parser/model/header"
+	"github.com/jochenboesmans/gedcom-parser/model/multimedia"
 	"github.com/jochenboesmans/gedcom-parser/model/note"
 	"github.com/jochenboesmans/gedcom-parser/model/person"
 	"github.com/jochenboesmans/gedcom-parser/model/repository"
@@ -24,6 +25,7 @@ type Gedcom struct {
 	Repositorys []*repository.Repository
 	Sources     []*source.Source
 	Submitters  []*submitter.Submitter
+	Multimedias []*multimedia.Multimedia
 }
 
 func NewGedcom() *Gedcom {
@@ -35,5 +37,6 @@ func NewGedcom() *Gedcom {
 		Repositorys: []*repository.Repository{},
 		Sources:     []*source.Source{},
 		Submitters:  []*submitter.Submitter{},
+		Multimedias: []*multimedia.Multimedia{},
 	}
 }

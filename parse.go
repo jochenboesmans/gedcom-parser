@@ -8,6 +8,7 @@ import (
 	"github.com/jochenboesmans/gedcom-parser/model/child"
 	"github.com/jochenboesmans/gedcom-parser/model/family"
 	"github.com/jochenboesmans/gedcom-parser/model/header"
+	"github.com/jochenboesmans/gedcom-parser/model/multimedia"
 	"github.com/jochenboesmans/gedcom-parser/model/note"
 	"github.com/jochenboesmans/gedcom-parser/model/person"
 	"github.com/jochenboesmans/gedcom-parser/model/repository"
@@ -41,6 +42,7 @@ type OutputGedcom struct {
 	Repositorys []*repository.Repository
 	Sources     []*source.Source
 	Submitters  []*submitter.Submitter
+	Multimedias []*multimedia.Multimedia
 }
 
 var monthNumberByAbbreviation = map[string]string{
@@ -124,6 +126,7 @@ func main() {
 		Repositorys: gedcom.Repositorys,
 		Sources:     gedcom.Sources,
 		Submitters:  gedcom.Submitters,
+		Multimedias: gedcom.Multimedias,
 	}
 
 	if !*useProtobuf {
@@ -164,6 +167,8 @@ func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.
 		interpretPersonRecord(gedcom, currentRecordDeepLines, currentRecordLine)
 	case "FAM":
 		interpretFamilyRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+	case "OBJE":
+		interpretMultimediaRecord(gedcom, currentRecordDeepLines)
 	case "NOTE":
 		interpretNoteRecord(gedcom, currentRecordDeepLines)
 	case "REPO":
@@ -177,6 +182,73 @@ func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.
 		//case "TRLR": nothing really to do here except maybe validate?
 	}
 	waitGroup.Done()
+}
+
+func interpretMultimediaRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+	baseLevel := *currentRecordDeepLines[0].Level()
+	idString := *currentRecordDeepLines[0].XRefID()
+	id, err := util.Hash(idString)
+	util.MaybePanic(err)
+	m := multimedia.Multimedia{
+		Id: id,
+	}
+	for i, line := range currentRecordDeepLines[1:] {
+		if *line.Level() <= baseLevel {
+			break
+		}
+		switch *line.Tag() {
+		case "FILE":
+			f := multimedia.File{
+				Reference: *line.Value(),
+			}
+			for j, fileLine := range currentRecordDeepLines[1+i+1:] {
+				if *line.Level() <= baseLevel+1 {
+					break
+				}
+				switch *fileLine.Tag() {
+				case "FORM":
+					f.Format = *fileLine.Value()
+					for _, formLine := range currentRecordDeepLines[1+i+1+j+1:] {
+						if *formLine.Level() <= baseLevel+2 {
+							break
+						}
+						switch *formLine.Tag() {
+						case "TYPE":
+							f.Type = *formLine.Value()
+						}
+					}
+				case "TITLE":
+					f.Title = *fileLine.Value()
+				}
+			}
+			m.Files = append(m.Files, &f)
+		case "REFN":
+			r := shared.UserReference{
+				Number: *line.Value(),
+			}
+			for _, refLine := range currentRecordDeepLines[1+i:] {
+				if *refLine.Level() <= baseLevel+1 {
+					break
+				}
+				switch *refLine.Tag() {
+				case "TYPE":
+					r.Type = *refLine.Value()
+				}
+			}
+			m.UserReferences = append(m.UserReferences, &r)
+		case "RIN":
+			m.AutomatedRecordId = *line.Value()
+		}
+		//case "NOTE":
+		//interpretNoteStructure
+		//case "SOUR":
+		//interpretSourceCitation
+		//case "CHAN":
+		// interpretChangeDate
+	}
+	gedcom.Lock.Lock()
+	gedcom.Multimedias = append(gedcom.Multimedias, &m)
+	gedcom.Lock.Unlock()
 }
 
 func interpretSubmitterRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
