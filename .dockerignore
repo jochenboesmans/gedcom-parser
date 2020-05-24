@@ -1,0 +1,7 @@
+.idea
+artifacts
+test-input
+
+# binaries
+gedcom-parser
+parse
