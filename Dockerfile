@@ -1,14 +1,13 @@
-FROM golang:1.14
+FROM golang:1.14 AS builder
 
-RUN echo "[url \"git@github.com:\"]\n\tinsteadOf = https://github.com/" >> /root/.gitconfig
-RUN mkdir /root/.ssh && echo "StrictHostKeyChecking no " > /root/.ssh/config
-
-ENV WDIR /go/src/github.com/jochenboesmans/gedcom-parser
-WORKDIR ${WDIR}
-COPY . ${WDIR}
-RUN mkdir -p ./artifacts
-
-RUN go get github.com/jochenboesmans/gedcom-parser
+WORKDIR /build
+COPY . .
 RUN go build
 
-CMD ["./gedcom-parser"]
+FROM alpine AS runner
+
+WORKDIR /app
+COPY --from=builder /build .
+RUN mkdir -p ./artifacts
+
+#CMD ["./gedcom-parser"]
