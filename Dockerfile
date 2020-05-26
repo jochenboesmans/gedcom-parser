@@ -10,4 +10,4 @@ WORKDIR /app
 COPY --from=builder /build .
 RUN mkdir -p ./artifacts
 
-#CMD ["./gedcom-parser"]
+CMD ["./gedcom-parser"]
