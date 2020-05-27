@@ -5,3 +5,6 @@ test-input
 # binaries
 gedcom-parser
 parse
+
+# scripts
+crosscompile.sh
