@@ -2,9 +2,7 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/jochenboesmans/gedcom-parser/model/child"
 	"github.com/jochenboesmans/gedcom-parser/model/family"
 	"github.com/jochenboesmans/gedcom-parser/model/header"
@@ -16,6 +14,8 @@ import (
 	"github.com/jochenboesmans/gedcom-parser/model/source"
 	"github.com/jochenboesmans/gedcom-parser/model/submission"
 	"github.com/jochenboesmans/gedcom-parser/model/submitter"
+	"io/ioutil"
+	"log"
 	"strconv"
 
 	"math"
@@ -26,7 +26,6 @@ import (
 
 	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
 	"github.com/jochenboesmans/gedcom-parser/model"
-	pb "github.com/jochenboesmans/gedcom-parser/proto"
 	"github.com/jochenboesmans/gedcom-parser/util"
 	"github.com/pquerna/ffjson/ffjson"
 )
@@ -65,12 +64,28 @@ var headTime time.Duration
 
 func main() {
 	beginTime := time.Now()
-	pathToGedcomFile := flag.String("pathToGedcomFile", "./test-input/ITIS.ged", "relative path to input gedcom file (with .ged extension if present)")
-	pathToJsonFile := flag.String("pathToJsonFile", "./artifacts/ITIS.json", "relative path to output json file (with .json extension if wanted)")
-	useProtobuf := flag.Bool("useProtobuf", false, "whether to use protobuf instead of json as serialization format")
-	flag.Parse()
 
-	file, err := os.Open(*pathToGedcomFile)
+	files, err := ioutil.ReadDir("io")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	waitGroup := &sync.WaitGroup{}
+	for _, f := range files {
+		if strings.HasSuffix(f.Name(), ".ged") {
+			waitGroup.Add(1)
+			go parse(f.Name(), waitGroup)
+		}
+	}
+	waitGroup.Wait()
+
+	fmt.Printf("total time taken: %f second.\n", float64(time.Since(beginTime))*math.Pow10(-9))
+}
+
+func parse(inputFileName string, outerWaitGroup *sync.WaitGroup) {
+	beginTime := time.Now()
+
+	file, err := os.Open("./io/" + inputFileName)
 	util.MaybePanic(err)
 	defer file.Close()
 
@@ -110,10 +125,6 @@ func main() {
 	}
 
 	waitGroup.Wait()
-	fmt.Printf("interpreted head in %f second.\n", float64(headTime)*math.Pow10(-9))
-	fmt.Printf("interpreted persons in %f second.\n", float64(personTime)*math.Pow10(-9))
-	fmt.Printf("interpreted familys in %f second.\n", float64(familyTime)*math.Pow10(-9))
-	writeTime := time.Now()
 
 	gedcomWithoutLock := OutputGedcom{
 		Header:      gedcom.Header,
@@ -128,34 +139,34 @@ func main() {
 		Multimedias: gedcom.Multimedias,
 	}
 
-	if !*useProtobuf {
-		gedcomJson, err := ffjson.Marshal(gedcomWithoutLock)
-		writeFile, err := os.Create(*pathToJsonFile)
-		writer := bufio.NewWriter(writeFile)
-		_, err = writer.Write(gedcomJson)
-		util.MaybePanic(err)
-		err = writer.Flush()
-		util.MaybePanic(err)
-	} else {
-		// WIP: needs full gedcom protobuf structure to be built
-		pbPerson := &pb.Person{
-			Id:        gedcom.Persons[0].Id,
-			PersonRef: gedcom.Persons[0].PersonRef,
-			IsLiving:  gedcom.Persons[0].IsLiving,
-		}
+	//if !*useProtobuf {
+	gedcomJson, err := ffjson.Marshal(gedcomWithoutLock)
+	writeFile, err := os.Create("./io/" + strings.Split(inputFileName, ".")[0] + ".json")
+	writer := bufio.NewWriter(writeFile)
+	_, err = writer.Write(gedcomJson)
+	util.MaybePanic(err)
+	err = writer.Flush()
+	util.MaybePanic(err)
+	//} else {
+	//	// WIP: needs full gedcom protobuf structure to be built
+	//	pbPerson := &pb.Person{
+	//		Id:        gedcom.Persons[0].Id,
+	//		PersonRef: gedcom.Persons[0].PersonRef,
+	//		IsLiving:  gedcom.Persons[0].IsLiving,
+	//	}
+	//
+	//	personProto, err := proto.Marshal(pbPerson)
+	//	personWriteFile, err := os.Create("./artifacts/personproto")
+	//
+	//	personWriter := bufio.NewWriter(personWriteFile)
+	//	_, err = personWriter.Write(personProto)
+	//	util.MaybePanic(err)
+	//	err = personWriter.Flush()
+	//	util.MaybePanic(err)
+	//}
 
-		personProto, err := proto.Marshal(pbPerson)
-		personWriteFile, err := os.Create("./artifacts/personproto")
-
-		personWriter := bufio.NewWriter(personWriteFile)
-		_, err = personWriter.Write(personProto)
-		util.MaybePanic(err)
-		err = personWriter.Flush()
-		util.MaybePanic(err)
-	}
-
-	fmt.Printf("wrote to file in %f second.\n", float64(time.Since(writeTime))*math.Pow10(-9))
-	fmt.Printf("total time taken: %f second.\n", float64(time.Since(beginTime))*math.Pow10(-9))
+	fmt.Printf("%s: time taken: %f second.\n", inputFileName, float64(time.Since(beginTime))*math.Pow10(-9))
+	outerWaitGroup.Done()
 }
 
 func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line, waitGroup *sync.WaitGroup) {
@@ -250,7 +261,7 @@ func interpretSourceRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 				switch *titleLine.Tag() {
 				case "CONC":
 				case "CONT":
-					t += " " + *titleLine.Value()
+					//t += " " + *titleLine.Value()
 				}
 			}
 			s.DescriptiveTitle = t
