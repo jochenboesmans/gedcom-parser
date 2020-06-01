@@ -10,6 +10,5 @@ ENV WDIR /go/src/github.com/jochenboesmans/gedcom-parser
 
 WORKDIR ${WDIR}
 COPY --from=builder /build ${WDIR}
-RUN mkdir -p ./artifacts
 
 CMD ["./gedcom-parser"]

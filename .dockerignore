@@ -1,6 +1,5 @@
 .idea
-artifacts
-test-input
+io
 
 # binaries
 gedcom-parser
