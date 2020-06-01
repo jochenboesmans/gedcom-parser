@@ -4,3 +4,6 @@ io
 # binaries
 gedcom-parser
 parse
+
+# scripts
+crosscompile.sh
