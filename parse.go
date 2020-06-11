@@ -75,11 +75,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	var sem = make(chan int, 510)
+
 	waitGroup := &sync.WaitGroup{}
 	for _, f := range files {
 		if strings.HasSuffix(f.Name(), ".ged") {
 			waitGroup.Add(1)
-			go parse(f.Name(), waitGroup)
+			sem <- 1
+			go parse(f.Name(), waitGroup, sem)
 		}
 	}
 	waitGroup.Wait()
@@ -87,9 +90,7 @@ func main() {
 	fmt.Printf("total time taken: %f second.\n", float64(time.Since(beginTime))*math.Pow10(-9))
 }
 
-func parse(inputFileName string, outerWaitGroup *sync.WaitGroup) {
-	beginTime := time.Now()
-
+func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 	file, err := os.Open("./io/" + inputFileName)
 	util.MaybePanic(err)
 	defer file.Close()
@@ -152,6 +153,7 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup) {
 	//if !*useProtobuf {
 	gedcomJson, err := ffjson.Marshal(gedcomWithoutLock)
 	writeFile, err := os.Create("./io/" + strings.Split(inputFileName, ".")[0] + ".json")
+	defer writeFile.Close()
 	writer := bufio.NewWriter(writeFile)
 	_, err = writer.Write(gedcomJson)
 	util.MaybePanic(err)
@@ -175,8 +177,8 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup) {
 	//	util.MaybePanic(err)
 	//}
 
-	fmt.Printf("%s: time taken: %f second.\n", inputFileName, float64(time.Since(beginTime))*math.Pow10(-9))
 	outerWaitGroup.Done()
+	<-sem
 }
 
 func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line, waitGroup *sync.WaitGroup) {
