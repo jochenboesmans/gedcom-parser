@@ -75,13 +75,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var sem = make(chan int, 510)
+	var sem = make(chan int, 1020)
 
 	waitGroup := &sync.WaitGroup{}
 	for _, f := range files {
 		if strings.HasSuffix(f.Name(), ".ged") {
 			waitGroup.Add(1)
-			sem <- 1
 			go parse(f.Name(), waitGroup, sem)
 		}
 	}
@@ -91,9 +90,9 @@ func main() {
 }
 
 func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
+	sem <- 1
 	file, err := os.Open("./io/" + inputFileName)
 	util.MaybePanic(err)
-	defer file.Close()
 
 	fileScanner := bufio.NewScanner(file)
 	fileScanner.Split(bufio.ScanLines)
@@ -131,6 +130,8 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 	}
 
 	waitGroup.Wait()
+	file.Close()
+	<-sem
 
 	gedcomWithoutLock := OutputGedcom{
 		Header:      gedcom.Header,
@@ -152,8 +153,9 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 
 	//if !*useProtobuf {
 	gedcomJson, err := ffjson.Marshal(gedcomWithoutLock)
+	sem <- 1
 	writeFile, err := os.Create("./io/" + strings.Split(inputFileName, ".")[0] + ".json")
-	defer writeFile.Close()
+	util.MaybePanic(err)
 	writer := bufio.NewWriter(writeFile)
 	_, err = writer.Write(gedcomJson)
 	util.MaybePanic(err)
@@ -177,8 +179,9 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 	//	util.MaybePanic(err)
 	//}
 
-	outerWaitGroup.Done()
+	writeFile.Close()
 	<-sem
+	outerWaitGroup.Done()
 }
 
 func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line, waitGroup *sync.WaitGroup) {
