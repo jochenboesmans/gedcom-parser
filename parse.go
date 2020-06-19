@@ -3,6 +3,19 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"math"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/pquerna/ffjson/ffjson"
+
+	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
+	"github.com/jochenboesmans/gedcom-parser/model"
 	"github.com/jochenboesmans/gedcom-parser/model/child"
 	"github.com/jochenboesmans/gedcom-parser/model/family"
 	"github.com/jochenboesmans/gedcom-parser/model/header"
@@ -14,58 +27,8 @@ import (
 	"github.com/jochenboesmans/gedcom-parser/model/source"
 	"github.com/jochenboesmans/gedcom-parser/model/submission"
 	"github.com/jochenboesmans/gedcom-parser/model/submitter"
-	"io/ioutil"
-	"log"
-	"strconv"
-
-	"math"
-	"os"
-	"strings"
-	"sync"
-	"time"
-
-	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
-	"github.com/jochenboesmans/gedcom-parser/model"
 	"github.com/jochenboesmans/gedcom-parser/util"
-	"github.com/pquerna/ffjson/ffjson"
 )
-
-type OutputGedcom struct {
-	Header      *header.Header
-	Submission  *submission.Submission
-	Persons     []*person.Person
-	Familys     []*family.Family
-	Childs      []*child.Child
-	Notes       []*note.Note
-	Repositorys []*repository.Repository
-	Sources     []*source.Source
-	Submitters  []*submitter.Submitter
-	Multimedias []*multimedia.Multimedia
-	// TEMPORARY FIELDS TO PASS CHALLENGE TESTS
-	FactTypes []string
-	MasterSources []string
-	SourceRepos []string
-	Medias []string
-}
-
-var monthNumberByAbbreviation = map[string]string{
-	"JAN": "01",
-	"FEB": "02",
-	"MAR": "03",
-	"APR": "04",
-	"MAY": "05",
-	"JUN": "06",
-	"JUL": "07",
-	"AUG": "08",
-	"SEP": "09",
-	"OCT": "10",
-	"NOV": "11",
-	"DEC": "12",
-}
-
-var personTime time.Duration
-var familyTime time.Duration
-var headTime time.Duration
 
 func main() {
 	beginTime := time.Now()
@@ -97,11 +60,14 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 	fileScanner := bufio.NewScanner(file)
 	fileScanner.Split(bufio.ScanLines)
 
-	currentRecordDeepLines := []*gedcomSpec.Line{}
+	recordLines := []*gedcomSpec.Line{}
 	var currentRecordLine *gedcomSpec.Line
 	waitGroup := &sync.WaitGroup{}
 
-	gedcom := model.NewGedcom()
+	gedcom := model.ConcurrencySafeGedcom{
+		Gedcom: model.Gedcom{},
+		Lock:   sync.RWMutex{},
+	}
 
 	i := 0
 	for fileScanner.Scan() {
@@ -116,24 +82,25 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 		// interpret record once it's fully read
 		if currentRecordLine != nil && *gedcomLine.Level() == 0 {
 			waitGroup.Add(1)
-			go interpretRecord(gedcom, currentRecordDeepLines, currentRecordLine, waitGroup)
+			go interpretRecord(&gedcom, recordLines, waitGroup)
 			currentRecordLine = nil
-			currentRecordDeepLines = []*gedcomSpec.Line{}
+			recordLines = []*gedcomSpec.Line{}
 		}
 		if *gedcomLine.Level() == 0 {
 			currentRecordLine = gedcomLine
 		}
 		if currentRecordLine != nil {
-			currentRecordDeepLines = append(currentRecordDeepLines, gedcomLine)
+			recordLines = append(recordLines, gedcomLine)
 		}
 		i++
 	}
 
 	waitGroup.Wait()
-	file.Close()
+	// TODO: Handle file close more gracefully (at least make sure semaphore isn't decreased on error)
+	_ = file.Close()
 	<-sem
 
-	gedcomWithoutLock := OutputGedcom{
+	gedcomWithoutLock := model.Gedcom{
 		Header:      gedcom.Header,
 		Submission:  gedcom.Submission,
 		Persons:     gedcom.Persons,
@@ -144,11 +111,6 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 		Sources:     gedcom.Sources,
 		Submitters:  gedcom.Submitters,
 		Multimedias: gedcom.Multimedias,
-		// TEMPORARY FIELDS TO PASS CHALLENGE TESTS:
-		FactTypes: []string{},
-		MasterSources: []string{},
-		SourceRepos: []string{},
-		Medias: []string{},
 	}
 
 	//if !*useProtobuf {
@@ -184,32 +146,31 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 	outerWaitGroup.Done()
 }
 
-func interpretRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line, waitGroup *sync.WaitGroup) {
-	switch *currentRecordLine.Tag() {
+func interpretRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*gedcomSpec.Line, waitGroup *sync.WaitGroup) {
+	switch *recordLines[0].Tag() {
 	case "HEAD":
-		interpretHeadRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+		interpretHeadRecord(gedcom, recordLines)
 	case "INDI":
-		interpretPersonRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+		interpretPersonRecord(gedcom, recordLines)
 	case "FAM":
-		interpretFamilyRecord(gedcom, currentRecordDeepLines, currentRecordLine)
+		interpretFamilyRecord(gedcom, recordLines)
 	case "OBJE":
-		interpretMultimediaRecord(gedcom, currentRecordDeepLines)
+		interpretMultimediaRecord(gedcom, recordLines)
 	case "NOTE":
-		interpretNoteRecord(gedcom, currentRecordDeepLines)
+		interpretNoteRecord(gedcom, recordLines)
 	case "REPO":
-		interpretRepoRecord(gedcom, currentRecordDeepLines)
+		interpretRepoRecord(gedcom, recordLines)
 	case "SOUR":
-		interpretSourceRecord(gedcom, currentRecordDeepLines)
+		interpretSourceRecord(gedcom, recordLines)
 	case "SUBN":
-		interpretSubmitterRecord(gedcom, currentRecordDeepLines)
+		interpretSubmitterRecord(gedcom, recordLines)
 	case "SUBM":
-		interpretSubmissionRecord(gedcom, currentRecordDeepLines)
-		//case "TRLR": nothing really to do here except maybe validate?
+		interpretSubmissionRecord(gedcom, recordLines)
 	}
 	waitGroup.Done()
 }
 
-func interpretSourceRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+func interpretSourceRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
 	baseLevel := *currentRecordDeepLines[0].Level()
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
@@ -334,7 +295,7 @@ func interpretSourceRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 	gedcom.Lock.Unlock()
 }
 
-func interpretMultimediaRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+func interpretMultimediaRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
 	baseLevel := *currentRecordDeepLines[0].Level()
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
@@ -401,7 +362,7 @@ func interpretMultimediaRecord(gedcom *model.Gedcom, currentRecordDeepLines []*g
 	gedcom.Lock.Unlock()
 }
 
-func interpretSubmitterRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+func interpretSubmitterRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
 	baseLevel := *currentRecordDeepLines[0].Level()
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
@@ -437,7 +398,7 @@ func interpretSubmitterRecord(gedcom *model.Gedcom, currentRecordDeepLines []*ge
 	gedcom.Lock.Unlock()
 }
 
-func interpretSubmissionRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+func interpretSubmissionRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
 	baseLevel := *currentRecordDeepLines[0].Level()
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
@@ -489,7 +450,7 @@ func interpretSubmissionRecord(gedcom *model.Gedcom, currentRecordDeepLines []*g
 	gedcom.Lock.Unlock()
 }
 
-func interpretRepoRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+func interpretRepoRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
 	util.MaybePanic(err)
@@ -547,7 +508,7 @@ func interpretRepoRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 	gedcom.Repositorys = append(gedcom.Repositorys, &r)
 }
 
-func interpretNoteRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+func interpretNoteRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
 	util.MaybePanic(err)
@@ -590,10 +551,9 @@ func interpretNoteRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 	gedcom.Lock.Unlock()
 }
 
-func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
-	startTime := time.Now()
+func interpretHeadRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*gedcomSpec.Line) {
 	h := header.Header{}
-	for i, line := range currentRecordDeepLines {
+	for i, line := range recordLines {
 		if i != 0 && *line.Level() == 0 {
 			break
 		}
@@ -603,7 +563,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 				source := header.Source{
 					ApprovedSystemId: *line.Value(),
 				}
-				for j, sourceLine := range currentRecordDeepLines[i+1:] {
+				for j, sourceLine := range recordLines[i+1:] {
 					if *sourceLine.Level() < 2 {
 						break
 					}
@@ -621,7 +581,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 							corporation := header.Corporation{
 								Name: *sourceLine.Value(),
 							}
-							for k, corpLine := range currentRecordDeepLines[i+1+j+1:] {
+							for k, corpLine := range recordLines[i+1+j+1:] {
 								if *corpLine.Level() < 3 {
 									break
 								}
@@ -631,7 +591,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 										address := shared.PhysicalAddress{
 											MainLine: *corpLine.Value(),
 										}
-										for _, addrLine := range currentRecordDeepLines[i+1+j+1+k+1:] {
+										for _, addrLine := range recordLines[i+1+j+1+k+1:] {
 											if *addrLine.Level() < 4 {
 												break
 											}
@@ -671,13 +631,13 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 						date = dateParts[0]
 					}
 					if len(dateParts) >= 2 {
-						date = monthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
+						date = util.MonthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
 					}
 					if len(dateParts) >= 3 {
 						date = dateParts[2] + "-" + date
 					}
 
-					timeLine := currentRecordDeepLines[i+1]
+					timeLine := recordLines[i+1]
 					if timeLine.Value() != nil {
 						date += "T" + *timeLine.Value()
 					}
@@ -707,7 +667,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 				}
 			case "GEDC":
 				metadata := header.GedcomMetadata{}
-				for _, gedcLine := range currentRecordDeepLines[i+1:] {
+				for _, gedcLine := range recordLines[i+1:] {
 					if *gedcLine.Level() < 2 {
 						break
 					}
@@ -724,8 +684,8 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 					characterSet := header.CharacterSet{
 						Value: *line.Value(),
 					}
-					if len(currentRecordDeepLines) > i+1 {
-						characterSet.Version = *currentRecordDeepLines[i+1].Value()
+					if len(recordLines) > i+1 {
+						characterSet.Version = *recordLines[i+1].Value()
 					}
 					h.CharacterSet = characterSet
 				}
@@ -740,7 +700,7 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 			case "NOTE":
 				if line.Value() != nil {
 					note := *line.Value()
-					for _, noteLine := range currentRecordDeepLines[i+1:] {
+					for _, noteLine := range recordLines[i+1:] {
 						switch *noteLine.Tag() {
 						case "CONT":
 						case "CONC":
@@ -754,16 +714,13 @@ func interpretHeadRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomS
 			}
 		}
 	}
-	headTime += time.Since(startTime)
-
 	gedcom.Lock.Lock()
 	gedcom.Header = &h
 	gedcom.Lock.Unlock()
 }
 
-func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
-	startTime := time.Now()
-	personPtr := person.NewPerson(currentRecordLine.XRefID())
+func interpretPersonRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+	personPtr := person.NewPerson(currentRecordDeepLines[0].XRefID())
 	for i, line := range currentRecordDeepLines {
 		if i != 0 && *line.Level() == 0 {
 			break
@@ -843,7 +800,7 @@ func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 								date = dateParts[0]
 							}
 							if len(dateParts) >= 2 {
-								date = monthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
+								date = util.MonthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
 							}
 							if len(dateParts) >= 3 {
 								date = dateParts[2] + "-" + date
@@ -864,12 +821,10 @@ func interpretPersonRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 	gedcom.Lock.Lock()
 	gedcom.Persons = append(gedcom.Persons, personPtr)
 	gedcom.Lock.Unlock()
-	personTime += time.Since(startTime)
 }
 
-func interpretFamilyRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedcomSpec.Line, currentRecordLine *gedcomSpec.Line) {
-	startTime := time.Now()
-	family := family.NewFamily(currentRecordLine.XRefID())
+func interpretFamilyRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
+	family := family.NewFamily(currentRecordDeepLines[0].XRefID())
 	for i, line := range currentRecordDeepLines {
 		if i != 0 && *line.Level() == 0 {
 			break
@@ -907,7 +862,7 @@ func interpretFamilyRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 							date = dateParts[0]
 						}
 						if len(dateParts) >= 2 {
-							date = monthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
+							date = util.MonthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
 						}
 						if len(dateParts) >= 3 {
 							date = dateParts[2] + "-" + date
@@ -926,7 +881,7 @@ func interpretFamilyRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 	}
 
 	for i, childId := range family.ChildIds {
-		child := child.NewChild(currentRecordLine.XRefID(), i, childId)
+		child := child.NewChild(currentRecordDeepLines[0].XRefID(), i, childId)
 		if family.MotherId != 0 {
 			child.RelationshipToMother = 1
 		}
@@ -942,5 +897,4 @@ func interpretFamilyRecord(gedcom *model.Gedcom, currentRecordDeepLines []*gedco
 	gedcom.Lock.Lock()
 	gedcom.Familys = append(gedcom.Familys, &family)
 	gedcom.Lock.Unlock()
-	familyTime += time.Since(startTime)
 }

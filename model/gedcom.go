@@ -14,8 +14,12 @@ import (
 	"sync"
 )
 
+type ConcurrencySafeGedcom struct {
+	Gedcom
+	Lock sync.RWMutex
+}
+
 type Gedcom struct {
-	Lock        sync.RWMutex
 	Header      *header.Header
 	Submission  *submission.Submission
 	Persons     []*person.Person
@@ -26,17 +30,4 @@ type Gedcom struct {
 	Sources     []*source.Source
 	Submitters  []*submitter.Submitter
 	Multimedias []*multimedia.Multimedia
-}
-
-func NewGedcom() *Gedcom {
-	return &Gedcom{
-		Persons:     []*person.Person{},
-		Familys:     []*family.Family{},
-		Childs:      []*child.Child{},
-		Notes:       []*note.Note{},
-		Repositorys: []*repository.Repository{},
-		Sources:     []*source.Source{},
-		Submitters:  []*submitter.Submitter{},
-		Multimedias: []*multimedia.Multimedia{},
-	}
 }
