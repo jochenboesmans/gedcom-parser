@@ -12,7 +12,7 @@ type Family struct {
 
 func NewFamily(identificationString *string) Family {
 	id, err := util.Hash(*identificationString)
-	util.MaybePanic(err)
+	util.Check(err)
 
 	return Family{
 		Id:       id,

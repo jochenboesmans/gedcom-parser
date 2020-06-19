@@ -33,7 +33,7 @@ type PersonPlace struct {
 
 func NewPerson(identificationString *string) *Person {
 	id, err := util.Hash(*identificationString)
-	util.MaybePanic(err)
+	util.Check(err)
 
 	// person is assumed living unless proven to be dead
 	return &Person{

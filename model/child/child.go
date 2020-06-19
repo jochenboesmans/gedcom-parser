@@ -15,10 +15,10 @@ type Child struct {
 
 func NewChild(familyRecordId *string, ithChildInFamily int, childId uint32) Child {
 	childPersonId, err := util.Hash("CHILD-" + strconv.Itoa(ithChildInFamily) + "-" + *familyRecordId)
-	util.MaybePanic(err)
+	util.Check(err)
 	familyId, err := util.Hash(*familyRecordId)
-	util.MaybePanic(err)
-	util.MaybePanic(err)
+	util.Check(err)
+	util.Check(err)
 	return Child{
 		Id:       childPersonId,
 		FamilyId: familyId,

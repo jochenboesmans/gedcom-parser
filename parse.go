@@ -35,16 +35,15 @@ func main() {
 
 	files, err := ioutil.ReadDir("io")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Unable to read from folder ./io")
 	}
 
-	var sem = make(chan int, 1020)
-
+	var concurrentlyOpenFiles = make(chan int, 1020)
 	waitGroup := &sync.WaitGroup{}
 	for _, f := range files {
 		if strings.HasSuffix(f.Name(), ".ged") {
 			waitGroup.Add(1)
-			go parse(f.Name(), waitGroup, sem)
+			go parse(f.Name(), waitGroup, concurrentlyOpenFiles)
 		}
 	}
 	waitGroup.Wait()
@@ -52,16 +51,18 @@ func main() {
 	fmt.Printf("total time taken: %f second.\n", float64(time.Since(beginTime))*math.Pow10(-9))
 }
 
-func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
-	sem <- 1
+func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentlyOpenFiles chan int) {
+	concurrentlyOpenFiles <- 1 // premature increment of semaphore to prevent race condition
 	file, err := os.Open("./io/" + inputFileName)
-	util.MaybePanic(err)
+	if err != nil {
+		<-concurrentlyOpenFiles
+		log.Print(err)
+	}
 
 	fileScanner := bufio.NewScanner(file)
 	fileScanner.Split(bufio.ScanLines)
 
 	recordLines := []*gedcomSpec.Line{}
-	var currentRecordLine *gedcomSpec.Line
 	waitGroup := &sync.WaitGroup{}
 
 	gedcom := model.ConcurrencySafeGedcom{
@@ -80,49 +81,36 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 		gedcomLine := gedcomSpec.NewLine(&line)
 
 		// interpret record once it's fully read
-		if currentRecordLine != nil && *gedcomLine.Level() == 0 {
+		if len(recordLines) > 0 && *gedcomLine.Level() == 0 {
 			waitGroup.Add(1)
 			go interpretRecord(&gedcom, recordLines, waitGroup)
-			currentRecordLine = nil
 			recordLines = []*gedcomSpec.Line{}
 		}
-		if *gedcomLine.Level() == 0 {
-			currentRecordLine = gedcomLine
-		}
-		if currentRecordLine != nil {
-			recordLines = append(recordLines, gedcomLine)
-		}
+		recordLines = append(recordLines, gedcomLine)
 		i++
 	}
 
 	waitGroup.Wait()
-	// TODO: Handle file close more gracefully (at least make sure semaphore isn't decreased on error)
-	_ = file.Close()
-	<-sem
-
-	gedcomWithoutLock := model.Gedcom{
-		Header:      gedcom.Header,
-		Submission:  gedcom.Submission,
-		Persons:     gedcom.Persons,
-		Familys:     gedcom.Familys,
-		Childs:      gedcom.Childs,
-		Notes:       gedcom.Notes,
-		Repositorys: gedcom.Repositorys,
-		Sources:     gedcom.Sources,
-		Submitters:  gedcom.Submitters,
-		Multimedias: gedcom.Multimedias,
+	err = file.Close()
+	if err != nil {
+		log.Print(err)
+	} else {
+		<-concurrentlyOpenFiles
 	}
 
 	//if !*useProtobuf {
-	gedcomJson, err := ffjson.Marshal(gedcomWithoutLock)
-	sem <- 1
+	gedcomJson, err := ffjson.Marshal(gedcom.Gedcom)
+	concurrentlyOpenFiles <- 1
 	writeFile, err := os.Create("./io/" + strings.Split(inputFileName, ".")[0] + ".json")
-	util.MaybePanic(err)
+	if err != nil {
+		<-concurrentlyOpenFiles
+		log.Print(err)
+	}
 	writer := bufio.NewWriter(writeFile)
 	_, err = writer.Write(gedcomJson)
-	util.MaybePanic(err)
+	util.Check(err)
 	err = writer.Flush()
-	util.MaybePanic(err)
+	util.Check(err)
 	//} else {
 	//	// WIP: needs full gedcom protobuf structure to be built
 	//	pbPerson := &pb.Person{
@@ -136,13 +124,17 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, sem chan int) {
 	//
 	//	personWriter := bufio.NewWriter(personWriteFile)
 	//	_, err = personWriter.Write(personProto)
-	//	util.MaybePanic(err)
+	//	util.Check(err)
 	//	err = personWriter.Flush()
-	//	util.MaybePanic(err)
+	//	util.Check(err)
 	//}
 
-	writeFile.Close()
-	<-sem
+	err = writeFile.Close()
+	if err != nil {
+		log.Print(err)
+	} else {
+		<-concurrentlyOpenFiles
+	}
 	outerWaitGroup.Done()
 }
 
@@ -174,7 +166,7 @@ func interpretSourceRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDee
 	baseLevel := *currentRecordDeepLines[0].Level()
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
-	util.MaybePanic(err)
+	util.Check(err)
 	s := source.Source{
 		Id: id,
 	}
@@ -299,7 +291,7 @@ func interpretMultimediaRecord(gedcom *model.ConcurrencySafeGedcom, currentRecor
 	baseLevel := *currentRecordDeepLines[0].Level()
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
-	util.MaybePanic(err)
+	util.Check(err)
 	m := multimedia.Multimedia{
 		Id: id,
 	}
@@ -366,7 +358,7 @@ func interpretSubmitterRecord(gedcom *model.ConcurrencySafeGedcom, currentRecord
 	baseLevel := *currentRecordDeepLines[0].Level()
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
-	util.MaybePanic(err)
+	util.Check(err)
 	s := submitter.Submitter{
 		Id: id,
 	}
@@ -402,7 +394,7 @@ func interpretSubmissionRecord(gedcom *model.ConcurrencySafeGedcom, currentRecor
 	baseLevel := *currentRecordDeepLines[0].Level()
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
-	util.MaybePanic(err)
+	util.Check(err)
 	s := submission.Submission{
 		Id: id,
 	}
@@ -414,7 +406,7 @@ func interpretSubmissionRecord(gedcom *model.ConcurrencySafeGedcom, currentRecor
 		case "SUBM":
 			submitterIdString := *line.Value()
 			submitterId, err := util.Hash(submitterIdString)
-			util.MaybePanic(err)
+			util.Check(err)
 			s.SubmitterId = submitterId
 		case "FAMF":
 			s.NameOfFamilyFile = *line.Value()
@@ -423,12 +415,12 @@ func interpretSubmissionRecord(gedcom *model.ConcurrencySafeGedcom, currentRecor
 		case "ANCE":
 			gensString := *line.Value()
 			gensInt, err := strconv.ParseUint(gensString, 10, 32)
-			util.MaybePanic(err)
+			util.Check(err)
 			s.GenerationsOfAncestors = uint32(gensInt)
 		case "DESC":
 			gensString := *line.Value()
 			gensInt, err := strconv.ParseUint(gensString, 10, 32)
-			util.MaybePanic(err)
+			util.Check(err)
 			s.GenerationsOfDescendants = uint32(gensInt)
 		case "ORDI":
 			switch strings.ToUpper(*line.Value()) {
@@ -453,7 +445,7 @@ func interpretSubmissionRecord(gedcom *model.ConcurrencySafeGedcom, currentRecor
 func interpretRepoRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
-	util.MaybePanic(err)
+	util.Check(err)
 	r := repository.Repository{
 		Id:      id,
 		Address: &shared.Address{},
@@ -511,7 +503,7 @@ func interpretRepoRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepL
 func interpretNoteRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
 	idString := *currentRecordDeepLines[0].XRefID()
 	id, err := util.Hash(idString)
-	util.MaybePanic(err)
+	util.Check(err)
 	n := note.Note{
 		Id:             id,
 		SubmitterText:  *currentRecordDeepLines[0].Value(),
@@ -833,19 +825,19 @@ func interpretFamilyRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDee
 		case "HUSB":
 			if line.Value() != nil {
 				fatherId, err := util.Hash(*line.Value())
-				util.MaybePanic(err)
+				util.Check(err)
 				family.FatherId = fatherId
 			}
 		case "WIFE":
 			if line.Value() != nil {
 				motherId, err := util.Hash(*line.Value())
-				util.MaybePanic(err)
+				util.Check(err)
 				family.MotherId = motherId
 			}
 		case "CHIL":
 			if line.Value() != nil {
 				childId, err := util.Hash(*line.Value())
-				util.MaybePanic(err)
+				util.Check(err)
 				family.ChildIds = append(family.ChildIds, childId)
 			}
 		case "CHAN":
