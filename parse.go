@@ -7,7 +7,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,15 +17,7 @@ import (
 	"github.com/jochenboesmans/gedcom-parser/model"
 	"github.com/jochenboesmans/gedcom-parser/model/child"
 	"github.com/jochenboesmans/gedcom-parser/model/family"
-	"github.com/jochenboesmans/gedcom-parser/model/header"
-	"github.com/jochenboesmans/gedcom-parser/model/multimedia"
-	"github.com/jochenboesmans/gedcom-parser/model/note"
-	"github.com/jochenboesmans/gedcom-parser/model/person"
-	"github.com/jochenboesmans/gedcom-parser/model/repository"
-	"github.com/jochenboesmans/gedcom-parser/model/shared"
-	"github.com/jochenboesmans/gedcom-parser/model/source"
-	"github.com/jochenboesmans/gedcom-parser/model/submission"
-	"github.com/jochenboesmans/gedcom-parser/model/submitter"
+	"github.com/jochenboesmans/gedcom-parser/model/individual"
 	"github.com/jochenboesmans/gedcom-parser/util"
 )
 
@@ -140,753 +131,103 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentlyOpe
 
 func interpretRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*gedcomSpec.Line, waitGroup *sync.WaitGroup) {
 	switch *recordLines[0].Tag() {
-	case "HEAD":
-		interpretHeadRecord(gedcom, recordLines)
 	case "INDI":
-		interpretPersonRecord(gedcom, recordLines)
+		interpretIndividualRecord(gedcom, recordLines)
 	case "FAM":
 		interpretFamilyRecord(gedcom, recordLines)
-	case "OBJE":
-		interpretMultimediaRecord(gedcom, recordLines)
-	case "NOTE":
-		interpretNoteRecord(gedcom, recordLines)
-	case "REPO":
-		interpretRepoRecord(gedcom, recordLines)
-	case "SOUR":
-		interpretSourceRecord(gedcom, recordLines)
-	case "SUBN":
-		interpretSubmitterRecord(gedcom, recordLines)
-	case "SUBM":
-		interpretSubmissionRecord(gedcom, recordLines)
 	}
 	waitGroup.Done()
 }
 
-func interpretSourceRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
-	baseLevel := *currentRecordDeepLines[0].Level()
-	idString := *currentRecordDeepLines[0].XRefID()
-	id, err := util.Hash(idString)
-	util.Check(err)
-	s := source.Source{
-		Id: id,
-	}
-	for i, line := range currentRecordDeepLines[1:] {
-		if *line.Level() <= baseLevel {
-			break
-		}
-		switch *line.Tag() {
-		case "DATA":
-			d := source.Data{
-				Events: []*source.Event{},
-			}
-			for j, dataLine := range currentRecordDeepLines[1+i+1:] {
-				if *dataLine.Level() <= baseLevel+1 {
-					break
-				}
-				switch *dataLine.Tag() {
-				case "EVEN":
-					e := source.Event{
-						AttributeTypes: *dataLine.Value(),
-					}
-					for _, eventLine := range currentRecordDeepLines[1+i+1+j+1:] {
-						if *eventLine.Level() <= baseLevel+2 {
-							break
-						}
-						switch *eventLine.Tag() {
-						case "DATE":
-							e.DatePeriod = *eventLine.Value()
-						case "PLAC":
-							e.JurisdictionPlace = *eventLine.Value()
-						}
-					}
-					d.Events = append(d.Events, &e)
-				case "AGNC":
-					d.ResponsibleAgency = *dataLine.Value()
-					//case "NOTE":
-					//	interpretNoteStructure
-				}
-			}
-			s.Data = &d
-		case "AUTH":
-			o := *line.Value()
-			for _, authLine := range currentRecordDeepLines[1+i+1:] {
-				if *authLine.Level() <= baseLevel+1 {
-					break
-				}
-				switch *authLine.Tag() {
-				case "CONC":
-				case "CONT":
-					o += " " + *authLine.Value()
-				}
-			}
-			s.Originator = o
-		case "TITL":
-			t := *line.Value()
-			for _, titleLine := range currentRecordDeepLines[1+i+1:] {
-				if *titleLine.Level() <= baseLevel+1 {
-					break
-				}
-				switch *titleLine.Tag() {
-				case "CONC":
-				case "CONT":
-					//t += " " + *titleLine.Value()
-				}
-			}
-			s.DescriptiveTitle = t
-		case "ABBR":
-			s.FiledByEntry = *line.Value()
-		case "PUBL":
-			p := *line.Value()
-			for _, publicationLine := range currentRecordDeepLines[1+i+1:] {
-				if *publicationLine.Level() <= baseLevel+1 {
-					break
-				}
-				switch *publicationLine.Tag() {
-				case "CONC":
-				case "CONT":
-					p += " " + *publicationLine.Value()
-				}
-			}
-			s.PublicationFacts = p
-		case "TEXT":
-			t := *line.Value()
-			for _, textLine := range currentRecordDeepLines[1+i+1:] {
-				if *textLine.Level() <= baseLevel+1 {
-					break
-				}
-				switch *textLine.Tag() {
-				case "CONC":
-				case "CONT":
-					t += " " + *textLine.Value()
-				}
-			}
-			s.PublicationFacts = t
-		// case "REPO":
-		// interpretSourceRepositoryCitation
-		case "REFN":
-			r := shared.UserReference{
-				Number: *line.Value(),
-			}
-			for _, refLine := range currentRecordDeepLines[1+i+1:] {
-				if *refLine.Level() <= baseLevel+1 {
-					break
-				}
-				switch *refLine.Tag() {
-				case "TYPE":
-					r.Type = *refLine.Value()
-				}
-			}
-			s.UserReferences = append(s.UserReferences, &r)
-		case "RIN":
-			s.AutomatedRecordId = *line.Value()
-			//TODO: changedate, notestructure, multimedialink
-		}
-	}
-	gedcom.Lock.Lock()
-	gedcom.Sources = append(gedcom.Sources, &s)
-	gedcom.Lock.Unlock()
-}
-
-func interpretMultimediaRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
-	baseLevel := *currentRecordDeepLines[0].Level()
-	idString := *currentRecordDeepLines[0].XRefID()
-	id, err := util.Hash(idString)
-	util.Check(err)
-	m := multimedia.Multimedia{
-		Id: id,
-	}
-	for i, line := range currentRecordDeepLines[1:] {
-		if *line.Level() <= baseLevel {
-			break
-		}
-		switch *line.Tag() {
-		case "FILE":
-			f := multimedia.File{
-				Reference: *line.Value(),
-			}
-			for j, fileLine := range currentRecordDeepLines[1+i+1:] {
-				if *line.Level() <= baseLevel+1 {
-					break
-				}
-				switch *fileLine.Tag() {
-				case "FORM":
-					f.Format = *fileLine.Value()
-					for _, formLine := range currentRecordDeepLines[1+i+1+j+1:] {
-						if *formLine.Level() <= baseLevel+2 {
-							break
-						}
-						switch *formLine.Tag() {
-						case "TYPE":
-							f.Type = *formLine.Value()
-						}
-					}
-				case "TITLE":
-					f.Title = *fileLine.Value()
-				}
-			}
-			m.Files = append(m.Files, &f)
-		case "REFN":
-			r := shared.UserReference{
-				Number: *line.Value(),
-			}
-			for _, refLine := range currentRecordDeepLines[1+i:] {
-				if *refLine.Level() <= baseLevel+1 {
-					break
-				}
-				switch *refLine.Tag() {
-				case "TYPE":
-					r.Type = *refLine.Value()
-				}
-			}
-			m.UserReferences = append(m.UserReferences, &r)
-		case "RIN":
-			m.AutomatedRecordId = *line.Value()
-		}
-		//case "NOTE":
-		//interpretNoteStructure
-		//case "SOUR":
-		//interpretSourceCitation
-		//case "CHAN":
-		// interpretChangeDate
-	}
-	gedcom.Lock.Lock()
-	gedcom.Multimedias = append(gedcom.Multimedias, &m)
-	gedcom.Lock.Unlock()
-}
-
-func interpretSubmitterRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
-	baseLevel := *currentRecordDeepLines[0].Level()
-	idString := *currentRecordDeepLines[0].XRefID()
-	id, err := util.Hash(idString)
-	util.Check(err)
-	s := submitter.Submitter{
-		Id: id,
-	}
-	for _, line := range currentRecordDeepLines[1:] {
-		if *line.Level() <= baseLevel {
-			break
-		}
-		switch *line.Tag() {
-		case "NAME":
-			s.Name = *line.Value()
-		//case "ADDR":
-		// interpretAddressStructure
-		//case "OBJE":
-		// interpretMultimediaLink
-		case "LANG":
-			s.LanguagePreference = append(s.LanguagePreference, *line.Value())
-		case "RFN":
-			s.SubmitterRegisteredRFN = *line.Value()
-		case "RIN":
-			s.AutomatedRecordId = *line.Value()
-			//case "NOTE":
-			//interpretNoteStructure
-			//case "CHAN":
-			// interpretChangeDate
-		}
-	}
-	gedcom.Lock.Lock()
-	gedcom.Submitters = append(gedcom.Submitters, &s)
-	gedcom.Lock.Unlock()
-}
-
-func interpretSubmissionRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
-	baseLevel := *currentRecordDeepLines[0].Level()
-	idString := *currentRecordDeepLines[0].XRefID()
-	id, err := util.Hash(idString)
-	util.Check(err)
-	s := submission.Submission{
-		Id: id,
-	}
-	for _, line := range currentRecordDeepLines[1:] {
-		if *line.Level() <= baseLevel {
-			break
-		}
-		switch *line.Tag() {
-		case "SUBM":
-			submitterIdString := *line.Value()
-			submitterId, err := util.Hash(submitterIdString)
-			util.Check(err)
-			s.SubmitterId = submitterId
-		case "FAMF":
-			s.NameOfFamilyFile = *line.Value()
-		case "TEMP":
-			s.TempleCode = *line.Value()
-		case "ANCE":
-			gensString := *line.Value()
-			gensInt, err := strconv.ParseUint(gensString, 10, 32)
-			util.Check(err)
-			s.GenerationsOfAncestors = uint32(gensInt)
-		case "DESC":
-			gensString := *line.Value()
-			gensInt, err := strconv.ParseUint(gensString, 10, 32)
-			util.Check(err)
-			s.GenerationsOfDescendants = uint32(gensInt)
-		case "ORDI":
-			switch strings.ToUpper(*line.Value()) {
-			case "YES":
-				s.OrdinanceProcessFlag = true
-			case "NO":
-				s.OrdinanceProcessFlag = false
-			}
-		case "RIN":
-			s.AutomatedRecordId = *line.Value()
-			//case "NOTE":
-			//interpretNoteStructure
-			//case "CHAN":
-			// interpretChangeDate
-		}
-	}
-	gedcom.Lock.Lock()
-	gedcom.Submission = &s
-	gedcom.Lock.Unlock()
-}
-
-func interpretRepoRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
-	idString := *currentRecordDeepLines[0].XRefID()
-	id, err := util.Hash(idString)
-	util.Check(err)
-	r := repository.Repository{
-		Id:      id,
-		Address: &shared.Address{},
-	}
-	for i, line := range currentRecordDeepLines[1:] {
-		if *line.Level() == 0 {
-			break
-		}
-		if *line.Level() == 1 {
-			switch *line.Tag() {
-			case "NAME":
-				r.Name = *line.Value()
-			case "ADDR":
-				if line.Value() != nil {
-					physicalAddress := shared.PhysicalAddress{
-						MainLine: *line.Value(),
-					}
-					for _, addrLine := range currentRecordDeepLines[i+1:] {
-						if *addrLine.Level() < 2 {
-							break
-						}
-						switch *addrLine.Tag() {
-						case "CONT":
-							physicalAddress.MainLine = physicalAddress.MainLine + " " + *addrLine.Value()
-						case "ADR1":
-							physicalAddress.Line1 = *addrLine.Value()
-						case "ADR2":
-							physicalAddress.Line2 = *addrLine.Value()
-						case "ADR3":
-							physicalAddress.Line3 = *addrLine.Value()
-						case "CITY":
-							physicalAddress.City = *addrLine.Value()
-						case "POST":
-							physicalAddress.PostCode = *addrLine.Value()
-						case "CTRY":
-							physicalAddress.Country = *addrLine.Value()
-						}
-					}
-					r.Address.PhysicalAddress = &physicalAddress
-				}
-			case "PHON":
-				r.Address.PhoneNumber = append(r.Address.PhoneNumber, line.Value())
-			case "EMAIL":
-				r.Address.Email = append(r.Address.Email, line.Value())
-			case "FAX":
-				r.Address.Fax = append(r.Address.Fax, line.Value())
-			case "WWW":
-				r.Address.WebPage = append(r.Address.WebPage, line.Value())
-			}
-		}
-	}
-	gedcom.Repositorys = append(gedcom.Repositorys, &r)
-}
-
-func interpretNoteRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
-	idString := *currentRecordDeepLines[0].XRefID()
-	id, err := util.Hash(idString)
-	util.Check(err)
-	n := note.Note{
-		Id:             id,
-		SubmitterText:  *currentRecordDeepLines[0].Value(),
-		UserReferences: []*shared.UserReference{},
-	}
-	for i, line := range currentRecordDeepLines[1:] {
-		if *line.Level() == 0 {
-			break
-		}
-		if *line.Level() == 1 {
-			switch *line.Tag() {
-			case "CONC":
-			case "CONT":
-				n.SubmitterText += *line.Value()
-			case "REFN":
-				reference := shared.UserReference{
-					Number: *line.Value(),
-				}
-				for _, noteLine := range currentRecordDeepLines[i+1:] {
-					if *noteLine.Level() < 2 {
-						break
-					}
-					switch *noteLine.Tag() {
-					case "TYPE":
-						reference.Type = *line.Value()
-					}
-				}
-				n.UserReferences = append(n.UserReferences, &reference)
-			case "RIN":
-				n.AutomatedRecordId = *line.Value()
-				// TODO: sourcecitation and changedate
-			}
-		}
-	}
-	gedcom.Lock.Lock()
-	gedcom.Notes = append(gedcom.Notes, &n)
-	gedcom.Lock.Unlock()
-}
-
-func interpretHeadRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*gedcomSpec.Line) {
-	h := header.Header{}
+func interpretIndividualRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*gedcomSpec.Line) {
+	individualXRefID := recordLines[0].XRefID()
+	individualInstance := individual.NewIndividual(individualXRefID)
 	for i, line := range recordLines {
 		if i != 0 && *line.Level() == 0 {
 			break
 		}
 		if *line.Level() == 1 {
 			switch *line.Tag() {
-			case "SOUR":
-				source := header.Source{
-					ApprovedSystemId: *line.Value(),
-				}
-				for j, sourceLine := range recordLines[i+1:] {
-					if *sourceLine.Level() < 2 {
-						break
-					}
-					switch *sourceLine.Tag() {
-					case "VERS":
-						if sourceLine.Value() != nil {
-							source.Version = *sourceLine.Value()
-						}
-					case "NAME":
-						if sourceLine.Value() != nil {
-							source.ProductName = *sourceLine.Value()
-						}
-					case "CORP":
-						if sourceLine.Value() != nil {
-							corporation := header.Corporation{
-								Name: *sourceLine.Value(),
-							}
-							for k, corpLine := range recordLines[i+1+j+1:] {
-								if *corpLine.Level() < 3 {
-									break
-								}
-								switch *corpLine.Tag() {
-								case "ADDR":
-									if corpLine.Value() != nil {
-										address := shared.PhysicalAddress{
-											MainLine: *corpLine.Value(),
-										}
-										for _, addrLine := range recordLines[i+1+j+1+k+1:] {
-											if *addrLine.Level() < 4 {
-												break
-											}
-											switch *addrLine.Tag() {
-											case "CITY":
-												if addrLine.Value() != nil {
-													address.City = *addrLine.Value()
-												}
-											case "POST":
-												if addrLine.Value() != nil {
-													address.PostCode = *addrLine.Value()
-												}
-											case "CTRY":
-												if addrLine.Value() != nil {
-													address.Country = *addrLine.Value()
-												}
-											}
-										}
-										corporation.Address = &address
-									}
-								case "WWW":
-									if corpLine.Value() != nil {
-										corporation.WebsiteURL = *corpLine.Value()
-									}
-								}
-							}
-							source.Corporation = &corporation
-						}
-					}
-				}
-				h.Source = &source
-			case "DATE":
-				if line.Value() != nil {
-					date := ""
-					dateParts := strings.SplitN(*line.Value(), " ", 3)
-					if len(dateParts) >= 1 {
-						date = dateParts[0]
-					}
-					if len(dateParts) >= 2 {
-						date = util.MonthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
-					}
-					if len(dateParts) >= 3 {
-						date = dateParts[2] + "-" + date
-					}
-
-					timeLine := recordLines[i+1]
-					if timeLine.Value() != nil {
-						date += "T" + *timeLine.Value()
-					}
-
-					h.TransmissionDate = date
-				}
-			case "DEST":
-				if line.Value() != nil {
-					h.ReceivingSystemName = *line.Value()
-				}
-			case "SUBM":
-				if line.Value() != nil {
-					h.SubmitterRecordId = *line.Value()
-					// TODO: ID-ify xrefid (hash or whatever)
-				}
-			case "SUBN":
-				if line.Value() != nil {
-					h.SubmissionRecordId = *line.Value()
-				}
-			case "FILE":
-				if line.Value() != nil {
-					h.FileName = *line.Value()
-				}
-			case "COPR":
-				if line.Value() != nil {
-					h.Copyright = *line.Value()
-				}
-			case "GEDC":
-				metadata := header.GedcomMetadata{}
-				for _, gedcLine := range recordLines[i+1:] {
-					if *gedcLine.Level() < 2 {
-						break
-					}
-					switch *gedcLine.Tag() {
-					case "VERS":
-						metadata.Version = *gedcLine.Value()
-					case "FORM":
-						metadata.Form = *gedcLine.Value()
-					}
-				}
-				h.Metadata = metadata
-			case "CHAR":
-				if line.Value() != nil {
-					characterSet := header.CharacterSet{
-						Value: *line.Value(),
-					}
-					if len(recordLines) > i+1 {
-						characterSet.Version = *recordLines[i+1].Value()
-					}
-					h.CharacterSet = characterSet
-				}
-			case "LANG":
-				if line.Value() != nil {
-					h.Language = *line.Value()
-				}
-			case "PLAC":
-				if line.Value() != nil {
-					h.PlaceHierarchy = *line.Value()
-				}
-			case "NOTE":
-				if line.Value() != nil {
-					note := *line.Value()
-					for _, noteLine := range recordLines[i+1:] {
-						switch *noteLine.Tag() {
-						case "CONT":
-						case "CONC":
-							if noteLine.Value() != nil {
-								note += " " + *noteLine.Value()
-							}
-						}
-					}
-					h.ContentDescription = note
-				}
-			}
-		}
-	}
-	gedcom.Lock.Lock()
-	gedcom.Header = &h
-	gedcom.Lock.Unlock()
-}
-
-func interpretPersonRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
-	personPtr := person.NewPerson(currentRecordDeepLines[0].XRefID())
-	for i, line := range currentRecordDeepLines {
-		if i != 0 && *line.Level() == 0 {
-			break
-		}
-		if *line.Level() == 1 {
-			switch *line.Tag() {
 			case "NAME":
-				name := person.PersonName{
-					FactTypeId: 100,
-				}
-				for _, nameLine := range currentRecordDeepLines[i+1:] {
-					if *nameLine.Level() < 2 {
-						break
-					}
-					switch *nameLine.Tag() {
-					case "GIVN":
-						name.GivenNames = *nameLine.Value()
-					case "SURN":
-						name.Surnames = *nameLine.Value()
-					}
-				}
-				if name.GivenNames != "" || name.Surnames != "" {
-					personPtr.Names = append(personPtr.Names, &name)
-				}
-			case "BIRT":
-				birthFact := person.PersonFact{
-					FactTypeId: 405,
-				}
-				for _, birthFactLine := range currentRecordDeepLines[i+1:] {
-					if *birthFactLine.Level() < 2 {
-						break
-					}
-					switch *birthFactLine.Tag() {
-					case "_PRIM":
-						if birthFactLine.Value() != nil {
-							switch *birthFactLine.Value() {
-							case "Y":
-								birthFact.Preferred = true
-							case "N":
-								birthFact.Preferred = false
-							}
+				name := individual.Name{}
+				nameParts := strings.Split(*line.Value(), "/")
+				if nameParts[0] != "" || nameParts[1] != "" {
+					name.GivenName = nameParts[0]
+					name.Surname = nameParts[1]
+				} else {
+					for _, nameLine := range recordLines[i+1:] {
+						if *nameLine.Level() < 2 {
+							break
 						}
-					case "DATE":
-						if birthFactLine.Value() != nil {
-							birthFact.DateDetail = *birthFactLine.Value()
+						switch *nameLine.Tag() {
+						case "GIVN":
+							name.GivenName = *nameLine.Value()
+						case "SURN":
+							name.Surname = *nameLine.Value()
 						}
-					case "PLAC":
-						place := person.PersonPlace{}
-						if birthFactLine.Value() != nil {
-							place.PlaceName = *birthFactLine.Value()
-						}
-						birthFact.Place = place
 					}
 				}
-				personPtr.Facts = append(personPtr.Facts, &birthFact)
-			//TODO: case "DEAT":
+				if name.GivenName != "" || name.Surname != "" {
+					individualInstance.Names = append(individualInstance.Names, &name)
+				}
 			case "SEX":
 				if line.Value() != nil {
 					switch *line.Value() {
 					case "M":
-						personPtr.Gender = 1
+						individualInstance.Gender = "MALE"
 					case "F":
-						personPtr.Gender = 2
+						individualInstance.Gender = "FEMALE"
 					}
-				}
-			case "CHAN":
-				date := ""
-				for _, chanLine := range currentRecordDeepLines[i+1:] {
-					if *chanLine.Level() < 2 {
-						break
-					}
-					switch *chanLine.Tag() {
-					case "DATE":
-						if chanLine.Value() != nil {
-							dateParts := strings.SplitN(*chanLine.Value(), " ", 3)
-							if len(dateParts) >= 1 {
-								date = dateParts[0]
-							}
-							if len(dateParts) >= 2 {
-								date = util.MonthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
-							}
-							if len(dateParts) >= 3 {
-								date = dateParts[2] + "-" + date
-							}
-						}
-					case "TIME":
-						date += "T" + *chanLine.Value()
-					}
-				}
-				personPtr.DateCreated = date
-			case "_UID":
-				if line.Value() != nil {
-					personPtr.PersonRef = *line.Value()
 				}
 			}
 		}
 	}
 	gedcom.Lock.Lock()
-	gedcom.Persons = append(gedcom.Persons, personPtr)
+	gedcom.Individuals = append(gedcom.Individuals, &individualInstance)
 	gedcom.Lock.Unlock()
 }
 
-func interpretFamilyRecord(gedcom *model.ConcurrencySafeGedcom, currentRecordDeepLines []*gedcomSpec.Line) {
-	family := family.NewFamily(currentRecordDeepLines[0].XRefID())
-	for i, line := range currentRecordDeepLines {
+func interpretFamilyRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*gedcomSpec.Line) {
+	familyId := recordLines[0].XRefID()
+	familyInstance := family.NewFamily(familyId)
+	for i, line := range recordLines {
 		if i != 0 && *line.Level() == 0 {
 			break
 		}
 		switch *line.Tag() {
 		case "HUSB":
 			if line.Value() != nil {
-				fatherId, err := util.Hash(*line.Value())
-				util.Check(err)
-				family.FatherId = fatherId
+				fatherId := line.Value()
+				familyInstance.FatherId = fatherId
 			}
 		case "WIFE":
 			if line.Value() != nil {
-				motherId, err := util.Hash(*line.Value())
-				util.Check(err)
-				family.MotherId = motherId
+				motherId := line.Value()
+				familyInstance.MotherId = motherId
 			}
 		case "CHIL":
 			if line.Value() != nil {
-				childId, err := util.Hash(*line.Value())
-				util.Check(err)
-				family.ChildIds = append(family.ChildIds, childId)
-			}
-		case "CHAN":
-			date := ""
-			for _, chanLine := range currentRecordDeepLines[i+1:] {
-				if *chanLine.Level() < 2 {
-					break
-				}
-				switch *chanLine.Tag() {
-				case "DATE":
-					if chanLine.Value() != nil {
-						dateParts := strings.SplitN(*chanLine.Value(), " ", 3)
-						if len(dateParts) >= 1 {
-							date = dateParts[0]
-						}
-						if len(dateParts) >= 2 {
-							date = util.MonthNumberByAbbreviation[strings.ToUpper(dateParts[1])] + "-" + date
-						}
-						if len(dateParts) >= 3 {
-							date = dateParts[2] + "-" + date
-						}
-					}
-				case "TIME":
-					if chanLine.Value() != nil {
-						date += "T" + *chanLine.Value()
-					}
-				}
-			}
-			if date != "" {
-				family.DateCreated = date
+				childId := line.Value()
+				familyInstance.ChildIds = append(familyInstance.ChildIds, childId)
 			}
 		}
-	}
 
-	for i, childId := range family.ChildIds {
-		child := child.NewChild(currentRecordDeepLines[0].XRefID(), i, childId)
-		if family.MotherId != 0 {
-			child.RelationshipToMother = 1
+		for _, childId := range familyInstance.ChildIds {
+			childInstance := child.NewChild(recordLines[0].XRefID(), childId)
+			if familyInstance.MotherId != nil && *familyInstance.MotherId != "" {
+				childInstance.RelationshipToMother = true
+			}
+			if familyInstance.FatherId != nil && *familyInstance.FatherId != "" {
+				childInstance.RelationshipToFather = true
+			}
+			gedcom.Lock.Lock()
+			gedcom.Children = append(gedcom.Children, &childInstance)
+			gedcom.Lock.Unlock()
+
 		}
-		if family.FatherId != 0 {
-			child.RelationshipToFather = 1
-		}
+
 		gedcom.Lock.Lock()
-		gedcom.Childs = append(gedcom.Childs, &child)
+		gedcom.Families = append(gedcom.Families, &familyInstance)
 		gedcom.Lock.Unlock()
-
 	}
-
-	gedcom.Lock.Lock()
-	gedcom.Familys = append(gedcom.Familys, &family)
-	gedcom.Lock.Unlock()
 }

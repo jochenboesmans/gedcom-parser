@@ -1,27 +1,15 @@
 package child
 
-import (
-	"github.com/jochenboesmans/gedcom-parser/util"
-	"strconv"
-)
-
 type Child struct {
-	Id                   uint32
-	FamilyId             uint32
-	ChildId              uint32
-	RelationshipToFather uint8
-	RelationshipToMother uint8
+	FamilyId             *string
+	ChildId              *string
+	RelationshipToFather bool
+	RelationshipToMother bool
 }
 
-func NewChild(familyRecordId *string, ithChildInFamily int, childId uint32) Child {
-	childPersonId, err := util.Hash("CHILD-" + strconv.Itoa(ithChildInFamily) + "-" + *familyRecordId)
-	util.Check(err)
-	familyId, err := util.Hash(*familyRecordId)
-	util.Check(err)
-	util.Check(err)
+func NewChild(familyId *string, identificationString *string) Child {
 	return Child{
-		Id:       childPersonId,
 		FamilyId: familyId,
-		ChildId:  childId,
+		ChildId:  identificationString,
 	}
 }
