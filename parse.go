@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pquerna/ffjson/ffjson"
-
 	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
 	"github.com/jochenboesmans/gedcom-parser/model"
 	"github.com/jochenboesmans/gedcom-parser/model/child"
@@ -21,7 +21,11 @@ import (
 	"github.com/jochenboesmans/gedcom-parser/util"
 )
 
+var from = flag.String("from", "ged", "type of file to parse")
+var to = flag.String("to", "json", "type of file to create")
+
 func main() {
+	flag.Parse()
 	beginTime := time.Now()
 
 	files, err := ioutil.ReadDir("io")
@@ -32,9 +36,14 @@ func main() {
 	var concurrentlyOpenFiles = make(chan int, 1020)
 	waitGroup := &sync.WaitGroup{}
 	for _, f := range files {
-		if strings.HasSuffix(f.Name(), ".ged") {
+		if strings.HasSuffix(f.Name(), fmt.Sprintf(".%s", *from)) {
 			waitGroup.Add(1)
-			go parse(f.Name(), waitGroup, concurrentlyOpenFiles)
+			switch *from {
+			case "ged":
+				go parseGedcom(f.Name(), waitGroup, concurrentlyOpenFiles)
+			case "json":
+				go parseJson(f.Name(), waitGroup, concurrentlyOpenFiles)
+			}
 		}
 	}
 	waitGroup.Wait()
@@ -42,7 +51,49 @@ func main() {
 	fmt.Printf("total time taken: %f second.\n", float64(time.Since(beginTime))*math.Pow10(-9))
 }
 
-func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentlyOpenFiles chan int) {
+func parseJson(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentlyOpenFiles chan int) {
+	concurrentlyOpenFiles <- 1 // premature increment of semaphore to prevent race condition
+	jsonFile, err := ioutil.ReadFile("./io/" + inputFileName)
+	if err != nil {
+		<-concurrentlyOpenFiles
+		log.Print(err)
+	}
+
+	gedcom := model.NoPointerGedcom{}
+	err = json.Unmarshal(jsonFile, &gedcom)
+	util.Check(err)
+
+	concurrentlyOpenFiles <- 1
+	writeFile, err := os.Create("./io/generated-" + strings.Split(inputFileName, ".")[0] + ".ged")
+	if err != nil {
+		<-concurrentlyOpenFiles
+		log.Print(err)
+	}
+
+	w := bufio.NewWriter(writeFile)
+	for _, i := range gedcom.Individuals {
+		firstLine := fmt.Sprintf("0 %s INDI\n", i.Id)
+		_, err := w.WriteString(firstLine)
+		util.Check(err)
+
+		for _, n := range i.Names {
+			nameLine := fmt.Sprintf("1 NAME %s/%s/\n", n.GivenName, n.Surname)
+			_, err := w.WriteString(nameLine)
+			util.Check(err)
+		}
+
+		genderMap := map[string]string{
+			"MALE":   "M",
+			"FEMALE": "F",
+		}
+		genderLine := fmt.Sprintf("1 SEX %s\n", genderMap[i.Gender])
+		_, err = w.WriteString(genderLine)
+		util.Check(err)
+	}
+	outerWaitGroup.Done()
+}
+
+func parseGedcom(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentlyOpenFiles chan int) {
 	concurrentlyOpenFiles <- 1 // premature increment of semaphore to prevent race condition
 	file, err := os.Open("./io/" + inputFileName)
 	if err != nil {
@@ -90,7 +141,7 @@ func parse(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentlyOpe
 	}
 
 	//if !*useProtobuf {
-	gedcomJson, err := ffjson.Marshal(gedcom.Gedcom)
+	gedcomJson, err := json.Marshal(gedcom.Gedcom)
 	concurrentlyOpenFiles <- 1
 	writeFile, err := os.Create("./io/" + strings.Split(inputFileName, ".")[0] + ".json")
 	if err != nil {

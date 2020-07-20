@@ -17,3 +17,9 @@ type Gedcom struct {
 	Families    []*family.Family
 	Children    []*child.Child
 }
+
+type NoPointerGedcom struct {
+	Individuals []individual.NoPointerIndividual
+	Families    []family.NoPointerFamily
+	Children    []child.NoPointerChild
+}

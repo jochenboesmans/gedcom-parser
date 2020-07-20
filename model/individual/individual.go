@@ -12,6 +12,12 @@ type Individual struct {
 	//AssociationStructures []*AssociationStructure
 }
 
+type NoPointerIndividual struct {
+	Id     string
+	Names  []Name
+	Gender string
+}
+
 type Name struct {
 	GivenName string
 	Surname   string
