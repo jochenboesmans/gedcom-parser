@@ -71,6 +71,7 @@ func parseJson(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentl
 	}
 
 	w := bufio.NewWriter(writeFile)
+
 	for _, i := range gedcom.Individuals {
 		firstLine := fmt.Sprintf("0 %s INDI\n", i.Id)
 		_, err := w.WriteString(firstLine)
@@ -89,6 +90,29 @@ func parseJson(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentl
 		genderLine := fmt.Sprintf("1 SEX %s\n", genderMap[i.Gender])
 		_, err = w.WriteString(genderLine)
 		util.Check(err)
+	}
+
+	for _, f := range gedcom.Families {
+		firstLine := fmt.Sprintf("0 %s FAM\n", f.Id)
+		_, err := w.WriteString(firstLine)
+		util.Check(err)
+
+		if f.FatherId != "" {
+			fatherLine := fmt.Sprintf("1 HUSB %s\n", f.FatherId)
+			_, err := w.WriteString(fatherLine)
+			util.Check(err)
+		}
+		if f.MotherId != "" {
+			motherLine := fmt.Sprintf("1 WIFE %s\n", f.MotherId)
+			_, err := w.WriteString(motherLine)
+			util.Check(err)
+		}
+
+		for _, childId := range f.ChildIds {
+			childLine := fmt.Sprintf("1 CHIL %s\n", childId)
+			_, err := w.WriteString(childLine)
+			util.Check(err)
+		}
 	}
 	outerWaitGroup.Done()
 }
