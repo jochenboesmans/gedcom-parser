@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/jochenboesmans/gedcom-parser/model/child"
 	"github.com/jochenboesmans/gedcom-parser/model/family"
 	"github.com/jochenboesmans/gedcom-parser/model/individual"
 	"sync"
@@ -15,11 +14,9 @@ type ConcurrencySafeGedcom struct {
 type Gedcom struct {
 	Individuals []*individual.Individual
 	Families    []*family.Family
-	Children    []*child.Child
 }
 
 type NoPointerGedcom struct {
 	Individuals []individual.NoPointerIndividual
 	Families    []family.NoPointerFamily
-	Children    []child.NoPointerChild
 }

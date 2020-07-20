@@ -15,7 +15,6 @@ import (
 
 	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
 	"github.com/jochenboesmans/gedcom-parser/model"
-	"github.com/jochenboesmans/gedcom-parser/model/child"
 	"github.com/jochenboesmans/gedcom-parser/model/family"
 	"github.com/jochenboesmans/gedcom-parser/model/individual"
 	"github.com/jochenboesmans/gedcom-parser/util"
@@ -113,6 +112,15 @@ func parseJson(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentl
 			_, err := w.WriteString(childLine)
 			util.Check(err)
 		}
+	}
+	err = w.Flush()
+	util.Check(err)
+
+	err = writeFile.Close()
+	if err != nil {
+		log.Print(err)
+	} else {
+		<-concurrentlyOpenFiles
 	}
 	outerWaitGroup.Done()
 }
@@ -286,23 +294,8 @@ func interpretFamilyRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*g
 				familyInstance.ChildIds = append(familyInstance.ChildIds, childId)
 			}
 		}
-
-		for _, childId := range familyInstance.ChildIds {
-			childInstance := child.NewChild(recordLines[0].XRefID(), childId)
-			if familyInstance.MotherId != nil && *familyInstance.MotherId != "" {
-				childInstance.RelationshipToMother = true
-			}
-			if familyInstance.FatherId != nil && *familyInstance.FatherId != "" {
-				childInstance.RelationshipToFather = true
-			}
-			gedcom.Lock.Lock()
-			gedcom.Children = append(gedcom.Children, &childInstance)
-			gedcom.Lock.Unlock()
-
-		}
-
-		gedcom.Lock.Lock()
-		gedcom.Families = append(gedcom.Families, &familyInstance)
-		gedcom.Lock.Unlock()
 	}
+	gedcom.Lock.Lock()
+	gedcom.Families = append(gedcom.Families, &familyInstance)
+	gedcom.Lock.Unlock()
 }
