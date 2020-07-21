@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
 	"github.com/jochenboesmans/gedcom-parser/model"
-	"github.com/jochenboesmans/gedcom-parser/model/family"
-	"github.com/jochenboesmans/gedcom-parser/model/individual"
+	protoStructs "github.com/jochenboesmans/gedcom-parser/proto"
 	"github.com/jochenboesmans/gedcom-parser/util"
 )
 
@@ -58,7 +58,7 @@ func parseJson(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentl
 		log.Print(err)
 	}
 
-	gedcom := model.NoPointerGedcom{}
+	gedcom := protoStructs.Gedcom{}
 	err = json.Unmarshal(jsonFile, &gedcom)
 	util.Check(err)
 
@@ -70,6 +70,10 @@ func parseJson(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentl
 	}
 
 	w := bufio.NewWriter(writeFile)
+
+	header := "0 HEAD\n"
+	_, err = w.WriteString(header)
+	util.Check(err)
 
 	for _, i := range gedcom.Individuals {
 		firstLine := fmt.Sprintf("0 %s INDI\n", i.Id)
@@ -113,6 +117,11 @@ func parseJson(inputFileName string, outerWaitGroup *sync.WaitGroup, concurrentl
 			util.Check(err)
 		}
 	}
+
+	trailer := "0 TRLR\n"
+	_, err = w.WriteString(trailer)
+	util.Check(err)
+
 	err = w.Flush()
 	util.Check(err)
 
@@ -140,7 +149,7 @@ func parseGedcom(inputFileName string, outerWaitGroup *sync.WaitGroup, concurren
 	waitGroup := &sync.WaitGroup{}
 
 	gedcom := model.ConcurrencySafeGedcom{
-		Gedcom: model.Gedcom{},
+		Gedcom: protoStructs.Gedcom{},
 		Lock:   sync.RWMutex{},
 	}
 
@@ -172,18 +181,40 @@ func parseGedcom(inputFileName string, outerWaitGroup *sync.WaitGroup, concurren
 		<-concurrentlyOpenFiles
 	}
 
-	//if !*useProtobuf {
-	gedcomJson, err := json.Marshal(gedcom.Gedcom)
+	gedcomProtobuf, err := proto.Marshal(&gedcom.Gedcom)
+	util.Check(err)
 	concurrentlyOpenFiles <- 1
-	writeFile, err := os.Create("./io/" + strings.Split(inputFileName, ".")[0] + ".json")
+	protobufFile, err := os.Create("./io/" + strings.Split(inputFileName, ".")[0] + ".protobuf")
 	if err != nil {
 		<-concurrentlyOpenFiles
 		log.Print(err)
 	}
-	writer := bufio.NewWriter(writeFile)
-	_, err = writer.Write(gedcomJson)
+	protoWriter := bufio.NewWriter(protobufFile)
+	_, err = protoWriter.Write(gedcomProtobuf)
 	util.Check(err)
-	err = writer.Flush()
+	err = protoWriter.Flush()
+	util.Check(err)
+
+	err = protobufFile.Close()
+	if err != nil {
+		log.Print(err)
+	} else {
+		<-concurrentlyOpenFiles
+	}
+
+	//if !*useProtobuf {
+	gedcomJson, err := json.Marshal(gedcom.Gedcom)
+	util.Check(err)
+	concurrentlyOpenFiles <- 1
+	jsonFile, err := os.Create("./io/" + strings.Split(inputFileName, ".")[0] + ".json")
+	if err != nil {
+		<-concurrentlyOpenFiles
+		log.Print(err)
+	}
+	jsonWriter := bufio.NewWriter(jsonFile)
+	_, err = jsonWriter.Write(gedcomJson)
+	util.Check(err)
+	err = jsonWriter.Flush()
 	util.Check(err)
 	//} else {
 	//	// WIP: needs full gedcom protobuf structure to be built
@@ -203,7 +234,7 @@ func parseGedcom(inputFileName string, outerWaitGroup *sync.WaitGroup, concurren
 	//	util.Check(err)
 	//}
 
-	err = writeFile.Close()
+	err = jsonFile.Close()
 	if err != nil {
 		log.Print(err)
 	} else {
@@ -224,7 +255,9 @@ func interpretRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*gedcomS
 
 func interpretIndividualRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*gedcomSpec.Line) {
 	individualXRefID := recordLines[0].XRefID()
-	individualInstance := individual.NewIndividual(individualXRefID)
+	individualInstance := protoStructs.Gedcom_Individual{
+		Id: *individualXRefID,
+	}
 	for i, line := range recordLines {
 		if i != 0 && *line.Level() == 0 {
 			break
@@ -232,7 +265,7 @@ func interpretIndividualRecord(gedcom *model.ConcurrencySafeGedcom, recordLines 
 		if *line.Level() == 1 {
 			switch *line.Tag() {
 			case "NAME":
-				name := individual.Name{}
+				name := protoStructs.Gedcom_Individual_Name{}
 				nameParts := strings.Split(*line.Value(), "/")
 				if nameParts[0] != "" || nameParts[1] != "" {
 					name.GivenName = nameParts[0]
@@ -266,13 +299,13 @@ func interpretIndividualRecord(gedcom *model.ConcurrencySafeGedcom, recordLines 
 		}
 	}
 	gedcom.Lock.Lock()
-	gedcom.Individuals = append(gedcom.Individuals, &individualInstance)
+	gedcom.Gedcom.Individuals = append(gedcom.Gedcom.Individuals, &individualInstance)
 	gedcom.Lock.Unlock()
 }
 
 func interpretFamilyRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*gedcomSpec.Line) {
 	familyId := recordLines[0].XRefID()
-	familyInstance := family.NewFamily(familyId)
+	familyInstance := protoStructs.Gedcom_Family{Id: *familyId}
 	for i, line := range recordLines {
 		if i != 0 && *line.Level() == 0 {
 			break
@@ -281,21 +314,40 @@ func interpretFamilyRecord(gedcom *model.ConcurrencySafeGedcom, recordLines []*g
 		case "HUSB":
 			if line.Value() != nil {
 				fatherId := line.Value()
-				familyInstance.FatherId = fatherId
+				familyInstance.FatherId = *fatherId
 			}
 		case "WIFE":
 			if line.Value() != nil {
 				motherId := line.Value()
-				familyInstance.MotherId = motherId
+				familyInstance.MotherId = *motherId
 			}
 		case "CHIL":
 			if line.Value() != nil {
 				childId := line.Value()
-				familyInstance.ChildIds = append(familyInstance.ChildIds, childId)
+				familyInstance.ChildIds = append(familyInstance.ChildIds, *childId)
 			}
 		}
 	}
-	gedcom.Lock.Lock()
-	gedcom.Families = append(gedcom.Families, &familyInstance)
-	gedcom.Lock.Unlock()
+	fatherExists := false
+	motherExists := false
+	childrenExistCount := 0
+	for _, i := range gedcom.Gedcom.Individuals {
+		if familyInstance.FatherId == i.Id {
+			fatherExists = true
+		}
+		if familyInstance.MotherId == i.Id {
+			motherExists = true
+		}
+		for _, childId := range familyInstance.ChildIds {
+			if childId == i.Id {
+				childrenExistCount++
+			}
+		}
+	}
+	childrenExist := childrenExistCount == len(familyInstance.ChildIds)
+	if fatherExists && motherExists && childrenExist {
+		gedcom.Lock.Lock()
+		gedcom.Gedcom.Families = append(gedcom.Gedcom.Families, &familyInstance)
+		gedcom.Lock.Unlock()
+	}
 }
