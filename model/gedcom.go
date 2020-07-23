@@ -103,29 +103,9 @@ func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*gedcomSpec.
 			}
 		}
 	}
-	// really expensive validation; TODO: Look into indexing
-	//fatherExists := false
-	//motherExists := false
-	//childrenExistCount := 0
-	//for _, i := range g.Gedcom.Individuals {
-	//	if familyInstance.FatherId == i.Id {
-	//		fatherExists = true
-	//	}
-	//	if familyInstance.MotherId == i.Id {
-	//		motherExists = true
-	//	}
-	//	for _, childId := range familyInstance.ChildIds {
-	//		if childId == i.Id {
-	//			childrenExistCount++
-	//		}
-	//	}
-	//}
-	//childrenExist := childrenExistCount == len(familyInstance.ChildIds)
-	//if fatherExists && motherExists && childrenExist {
 	g.lock()
 	g.Gedcom.Families = append(g.Gedcom.Families, &familyInstance)
 	g.unlock()
-	//}
 }
 
 func (g *ConcurrencySafeGedcom) lock() {
