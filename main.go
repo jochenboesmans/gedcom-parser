@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"github.com/jochenboesmans/gedcom-parser/grpc"
 	remote_file_storage "github.com/jochenboesmans/gedcom-parser/remote-file-storage"
 	"github.com/jochenboesmans/gedcom-parser/server"
 	"io/ioutil"
@@ -28,8 +29,10 @@ func main() {
 	switch os.Args[1] {
 	case "parse":
 		parse()
-	case "serve":
+	case "serve-rest":
 		server.Serve()
+	case "serve-grpc":
+		grpc.Serve()
 	}
 }
 

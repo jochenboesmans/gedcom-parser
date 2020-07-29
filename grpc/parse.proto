@@ -1,0 +1,16 @@
+syntax = "proto3";
+package grpc;
+
+message PathsToFiles {
+    string inputFilePath = 1;
+    string outputFilePath = 2;
+}
+
+message Result {
+    string message = 1;
+    string error = 2;
+}
+
+service ParseService {
+    rpc Parse(PathsToFiles) returns (Result) {}
+}
