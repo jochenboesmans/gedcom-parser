@@ -18,7 +18,7 @@ func TestS3Write(t *testing.T) {
 		t.Errorf("failed to open file: %s", err)
 	}
 
-	_, err = S3Write("ITIS.ged", f)
+	_, err = S3Write("gedcom/ITIS.ged", &f)
 	if err != nil {
 		t.Errorf("failed to write to s3: %s", err)
 	}

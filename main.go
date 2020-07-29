@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	remote_file_storage "github.com/jochenboesmans/gedcom-parser/remote-file-storage"
+	"github.com/jochenboesmans/gedcom-parser/server"
 	"io/ioutil"
 	"log"
 	"math"
@@ -24,6 +25,15 @@ var from = flag.String("from", "ged", "type of file to parse")
 var to = flag.String("to", "json", "type of file to create")
 
 func main() {
+	switch os.Args[1] {
+	case "parse":
+		parse()
+	case "serve":
+		server.Serve()
+	}
+}
+
+func parse() {
 	flag.Parse()
 	beginTime := time.Now()
 

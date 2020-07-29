@@ -8,18 +8,25 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-func S3Read(key string) (int64, error) {
+func S3Read(pathToFile string) (*[]byte, error) {
 	session := session2.Must(session2.NewSession(aws.NewConfig().WithRegion("eu-west-2")))
 
 	downloader := s3manager.NewDownloader(session)
 
-	return downloader.Download(&aws.WriteAtBuffer{}, &s3.GetObjectInput{
+	buffer := aws.WriteAtBuffer{}
+	_, err := downloader.Download(&buffer, &s3.GetObjectInput{
 		Bucket: aws.String("jochen-gedcom"),
-		Key:    aws.String(key),
+		Key:    aws.String(pathToFile),
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	readBytes := buffer.Bytes()
+	return &readBytes, nil
 }
 
-func S3Write(key string, content *[]byte) (*s3manager.UploadOutput, error) {
+func S3Write(pathToFile string, content *[]byte) (*s3manager.UploadOutput, error) {
 	session := session2.Must(session2.NewSession(aws.NewConfig().WithRegion("eu-west-2")))
 
 	uploader := s3manager.NewUploader(session)
@@ -28,7 +35,7 @@ func S3Write(key string, content *[]byte) (*s3manager.UploadOutput, error) {
 
 	return uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String("jochen-gedcom"),
-		Key:    aws.String(key),
+		Key:    aws.String(pathToFile),
 		Body:   r,
 	})
 }
