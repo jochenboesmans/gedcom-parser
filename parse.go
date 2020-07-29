@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	remote_file_storage "github.com/jochenboesmans/gedcom-parser/remote-file-storage"
 	"io/ioutil"
 	"log"
 	"math"
@@ -58,7 +59,8 @@ func parseJsonOrProtobuf(inputFileName string, outerWaitGroup *sync.WaitGroup, c
 		readProtobuf(gedcom, concurrentlyOpenFiles, inputFileName)
 	}
 
-	writeToGedcom(gedcom, concurrentlyOpenFiles, inputFileName)
+	//writeToGedcom(gedcom, concurrentlyOpenFiles, inputFileName)
+	writeToGedcomS3(gedcom, inputFileName)
 
 	outerWaitGroup.Done()
 }
@@ -87,6 +89,62 @@ func readProtobuf(gedcom *model.Gedcom, concurrentlyOpenFiles chan int, inputFil
 	util.Check(err)
 }
 
+func writeToGedcomS3(gedcom *model.Gedcom, inputFileName string) {
+	_, err := remote_file_storage.S3Write(inputFileName, writableGedcom(gedcom))
+	util.Check(err)
+}
+
+func writableGedcom(gedcom *model.Gedcom) *[]byte {
+	gedcomString := ""
+
+	header := "0 HEAD\n"
+	gedcomString += header
+
+	for _, i := range gedcom.Individuals {
+		firstLine := fmt.Sprintf("0 %s INDI\n", i.Id)
+		gedcomString += firstLine
+
+		for _, n := range i.Names {
+			nameLine := fmt.Sprintf("1 NAME %s/%s/\n", n.GivenName, n.Surname)
+			gedcomString += nameLine
+		}
+
+		genderMap := map[string]string{
+			"MALE":   "M",
+			"FEMALE": "F",
+		}
+		genderLine := fmt.Sprintf("1 SEX %s\n", genderMap[i.Gender])
+		gedcomString += genderLine
+	}
+
+	for _, f := range gedcom.Families {
+		firstLine := fmt.Sprintf("0 %s FAM\n", f.Id)
+		gedcomString += firstLine
+
+		if f.FatherId != "" {
+			fatherLine := fmt.Sprintf("1 HUSB %s\n", f.FatherId)
+			gedcomString += fatherLine
+		}
+		if f.MotherId != "" {
+			motherLine := fmt.Sprintf("1 WIFE %s\n", f.MotherId)
+			gedcomString += motherLine
+		}
+
+		for _, childId := range f.ChildIds {
+			childLine := fmt.Sprintf("1 CHIL %s\n", childId)
+			gedcomString += childLine
+		}
+	}
+
+	trailer := "0 TRLR\n"
+	gedcomString += trailer
+
+	gedcomBytes := []byte(gedcomString)
+
+	return &gedcomBytes
+
+}
+
 func writeToGedcom(gedcom *model.Gedcom, concurrentlyOpenFiles chan int, inputFileName string) {
 	concurrentlyOpenFiles <- 1
 	writeFile, err := os.Create("./io/generated-" + strings.Split(inputFileName, ".")[0] + ".ged")
@@ -97,58 +155,9 @@ func writeToGedcom(gedcom *model.Gedcom, concurrentlyOpenFiles chan int, inputFi
 
 	w := bufio.NewWriter(writeFile)
 
-	header := "0 HEAD\n"
-	_, err = w.WriteString(header)
-	util.Check(err)
+	gedcomString := writableGedcom(gedcom)
 
-	for _, i := range gedcom.Individuals {
-		firstLine := fmt.Sprintf("0 %s INDI\n", i.Id)
-		_, err := w.WriteString(firstLine)
-		util.Check(err)
-
-		for _, n := range i.Names {
-			nameLine := fmt.Sprintf("1 NAME %s/%s/\n", n.GivenName, n.Surname)
-			_, err := w.WriteString(nameLine)
-			util.Check(err)
-		}
-
-		genderMap := map[string]string{
-			"MALE":   "M",
-			"FEMALE": "F",
-		}
-		genderLine := fmt.Sprintf("1 SEX %s\n", genderMap[i.Gender])
-		_, err = w.WriteString(genderLine)
-		util.Check(err)
-	}
-
-	for _, f := range gedcom.Families {
-		firstLine := fmt.Sprintf("0 %s FAM\n", f.Id)
-		_, err := w.WriteString(firstLine)
-		util.Check(err)
-
-		if f.FatherId != "" {
-			fatherLine := fmt.Sprintf("1 HUSB %s\n", f.FatherId)
-			_, err := w.WriteString(fatherLine)
-			util.Check(err)
-		}
-		if f.MotherId != "" {
-			motherLine := fmt.Sprintf("1 WIFE %s\n", f.MotherId)
-			_, err := w.WriteString(motherLine)
-			util.Check(err)
-		}
-
-		for _, childId := range f.ChildIds {
-			childLine := fmt.Sprintf("1 CHIL %s\n", childId)
-			_, err := w.WriteString(childLine)
-			util.Check(err)
-		}
-	}
-
-	trailer := "0 TRLR\n"
-	_, err = w.WriteString(trailer)
-	util.Check(err)
-
-	err = w.Flush()
+	_, err = w.Write(*gedcomString)
 	util.Check(err)
 
 	err = writeFile.Close()
@@ -223,45 +232,51 @@ func readGedcom(concurrentlyOpenFiles chan int, inputFileName string) *model.Con
 func writeGedcomToProtobuf(g *model.ConcurrencySafeGedcom, concurrentlyOpenFiles chan int, inputFileName string) {
 	gedcomProtobuf, err := proto.Marshal(&g.Gedcom)
 	util.Check(err)
-	concurrentlyOpenFiles <- 1
-	protobufFile, err := os.Create("./io/generated-" + strings.Split(inputFileName, ".")[0] + ".protobuf")
-	if err != nil {
-		<-concurrentlyOpenFiles
-		log.Print(err)
-	}
-	protoWriter := bufio.NewWriter(protobufFile)
-	_, err = protoWriter.Write(gedcomProtobuf)
-	util.Check(err)
-	err = protoWriter.Flush()
+	_, err = remote_file_storage.S3Write(inputFileName, &gedcomProtobuf)
 	util.Check(err)
 
-	err = protobufFile.Close()
-	if err != nil {
-		log.Print(err)
-	} else {
-		<-concurrentlyOpenFiles
-	}
+	//concurrentlyOpenFiles <- 1
+	//protobufFile, err := os.Create("./io/generated-" + strings.Split(inputFileName, ".")[0] + ".protobuf")
+	//if err != nil {
+	//	<-concurrentlyOpenFiles
+	//	log.Print(err)
+	//}
+	//protoWriter := bufio.NewWriter(protobufFile)
+	//_, err = protoWriter.Write(gedcomProtobuf)
+	//util.Check(err)
+	//err = protoWriter.Flush()
+	//util.Check(err)
+	//
+	//err = protobufFile.Close()
+	//if err != nil {
+	//	log.Print(err)
+	//} else {
+	//	<-concurrentlyOpenFiles
+	//}
 }
 
 func writeGedcomToJSON(g *model.ConcurrencySafeGedcom, concurrentlyOpenFiles chan int, inputFileName string) {
 	gedcomJson, err := json.Marshal(g.Gedcom)
 	util.Check(err)
-	concurrentlyOpenFiles <- 1
-	jsonFile, err := os.Create("./io/generated-" + strings.Split(inputFileName, ".")[0] + ".json")
-	if err != nil {
-		<-concurrentlyOpenFiles
-		log.Print(err)
-	}
-	jsonWriter := bufio.NewWriter(jsonFile)
-	_, err = jsonWriter.Write(gedcomJson)
-	util.Check(err)
-	err = jsonWriter.Flush()
+	_, err = remote_file_storage.S3Write(inputFileName, &gedcomJson)
 	util.Check(err)
 
-	err = jsonFile.Close()
-	if err != nil {
-		log.Print(err)
-	} else {
-		<-concurrentlyOpenFiles
-	}
+	//concurrentlyOpenFiles <- 1
+	//jsonFile, err := os.Create("./io/generated-" + strings.Split(inputFileName, ".")[0] + ".json")
+	//if err != nil {
+	//	<-concurrentlyOpenFiles
+	//	log.Print(err)
+	//}
+	//jsonWriter := bufio.NewWriter(jsonFile)
+	//_, err = jsonWriter.Write(gedcomJson)
+	//util.Check(err)
+	//err = jsonWriter.Flush()
+	//util.Check(err)
+	//
+	//err = jsonFile.Close()
+	//if err != nil {
+	//	log.Print(err)
+	//} else {
+	//	<-concurrentlyOpenFiles
+	//}
 }
