@@ -40,7 +40,7 @@ func handleParse(w http.ResponseWriter, r *http.Request) {
 
 	switch filepath.Ext(from) {
 	case ".ged":
-		output, err := parseGedcom(inputReader, to)
+		output, err := ParseGedcom(inputReader, to)
 		if err != nil {
 			_, _ = fmt.Fprintf(w, "failed to parse gedcom: %s", err)
 			return
@@ -72,7 +72,7 @@ func parseParams(w http.ResponseWriter, r *http.Request) (string, string, error)
 	return fromValue[0], toValue[0], nil
 }
 
-func parseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
+func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 	fileScanner := bufio.NewScanner(inputReader)
 	fileScanner.Split(bufio.ScanLines)
 
@@ -106,7 +106,7 @@ func parseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 		return gedcomToJSON(gedcom)
 	}
 
-	return nil, fmt.Errorf("no matching file extension in 'to'")
+	return nil, fmt.Errorf("failed to match output file extension to: %s", ".json")
 }
 
 func gedcomToJSON(gedcom *model.ConcurrencySafeGedcom) (*[]byte, error) {

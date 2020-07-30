@@ -17,9 +17,9 @@ func TestServe(t *testing.T) {
 
 	c := NewParseServiceClient(conn)
 
-	response, err := c.Parse(context.Background(), &PathsToFiles{InputFilePath: "foo", OutputFilePath: "bar"})
+	response, err := c.Parse(context.Background(), &PathsToFiles{InputFilePath: "gedcom/ITIS.ged", OutputFilePath: "json/new-ITIS.json"})
 	if err != nil {
-		log.Fatalf("Error when calling SayHello: %s", err)
+		log.Fatalf("error when calling Parse: %s", err)
 	}
 	log.Printf("Response from server: %+v", response)
 }
