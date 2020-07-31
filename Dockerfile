@@ -8,6 +8,5 @@ FROM alpine AS runner
 
 WORKDIR /app
 COPY --from=builder /build .
-RUN mkdir -p ./io
 
 CMD ["./gedcom-parser"]

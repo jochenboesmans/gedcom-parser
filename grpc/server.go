@@ -1,25 +1,15 @@
 package grpc
 
 import (
-	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
-	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
-	"github.com/jochenboesmans/gedcom-parser/model"
 	"github.com/jochenboesmans/gedcom-parser/parse"
 	remoteFileStorage "github.com/jochenboesmans/gedcom-parser/remote-file-storage"
 	"golang.org/x/net/context"
-	"io"
-	"io/ioutil"
+	"google.golang.org/grpc"
 	"log"
 	"net"
 	"path/filepath"
-	"strings"
-	"sync"
-
-	"google.golang.org/grpc"
 )
 
 type Server struct{}
@@ -42,7 +32,7 @@ func (s *Server) Parse(_ context.Context, paths *PathsToFiles) (*Result, error) 
 	switch filepath.Ext(paths.InputFilePath) {
 	case ".ged":
 		log.Printf("parsing gedcom...\n")
-		output, err = parseGedcom(inputReader, paths.OutputFilePath)
+		output, err = parse.ParseGedcom(inputReader, paths.OutputFilePath)
 		if err != nil {
 			errMessage := fmt.Sprintf("failed to parse gedcom: %s", err)
 			log.Println(errMessage)
@@ -52,7 +42,7 @@ func (s *Server) Parse(_ context.Context, paths *PathsToFiles) (*Result, error) 
 		}
 	case ".json":
 		log.Printf("parsing json...\n")
-		output, err = parseJSON(inputReader)
+		output, err = parse.ParseJSON(inputReader)
 		if err != nil {
 			errMessage := fmt.Sprintf("failed to parse json: %s", err)
 			log.Println(errMessage)
@@ -62,7 +52,7 @@ func (s *Server) Parse(_ context.Context, paths *PathsToFiles) (*Result, error) 
 		}
 	case ".protobuf":
 		log.Printf("parsing protobuf...\n")
-		output, err = parseProtobuf(inputReader)
+		output, err = parse.ParseProtobuf(inputReader)
 		if err != nil {
 			errMessage := fmt.Sprintf("failed to parse protobuf: %s", err)
 			log.Println(errMessage)
@@ -111,83 +101,4 @@ func Serve() {
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %s", err)
 	}
-}
-
-func parseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
-	fileScanner := bufio.NewScanner(inputReader)
-	fileScanner.Split(bufio.ScanLines)
-
-	recordLines := []*gedcomSpec.Line{}
-	waitGroup := &sync.WaitGroup{}
-
-	gedcom := model.NewConcurrencySafeGedcom()
-
-	i := 0
-	for fileScanner.Scan() {
-		line := ""
-		if i == 0 {
-			line = strings.TrimPrefix(fileScanner.Text(), "\uFEFF")
-		} else {
-			line = fileScanner.Text()
-		}
-		gedcomLine := gedcomSpec.NewLine(&line)
-
-		// interpret record once it's fully read
-		if len(recordLines) > 0 && *gedcomLine.Level() == 0 {
-			waitGroup.Add(1)
-			go gedcom.InterpretRecord(recordLines, waitGroup)
-			recordLines = []*gedcomSpec.Line{}
-		}
-		recordLines = append(recordLines, gedcomLine)
-		i++
-	}
-
-	switch filepath.Ext(to) {
-	case ".json":
-		return parse.GedcomToJSON(gedcom)
-	case ".protobuf":
-		return parse.GedcomToProto(gedcom)
-	}
-
-	return nil, fmt.Errorf("failed to match output file extension to: %s", ".json")
-}
-
-func parseJSON(inputReader io.Reader) (*[]byte, error) {
-	gedcom := &model.Gedcom{}
-
-	gedcomJson, err := ioutil.ReadAll(inputReader)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("hello")
-
-	err = json.Unmarshal(gedcomJson, gedcom)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("hello")
-
-	gedcomBuf := parse.WritableGedcom(gedcom)
-	gedcomBytes := gedcomBuf.Bytes()
-	return &gedcomBytes, nil
-}
-
-func parseProtobuf(inputReader io.Reader) (*[]byte, error) {
-	var gedcom *model.Gedcom
-
-	gedcomProto, err := ioutil.ReadAll(inputReader)
-	if err != nil {
-		return nil, err
-	}
-
-	err = proto.Unmarshal(gedcomProto, gedcom)
-	if err != nil {
-		return nil, err
-	}
-
-	gedcomBuf := parse.WritableGedcom(gedcom)
-	gedcomBytes := gedcomBuf.Bytes()
-	return &gedcomBytes, nil
 }

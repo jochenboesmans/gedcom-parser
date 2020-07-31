@@ -1,8 +1,9 @@
 # Gedcom parser
 This application can be used as a CLI application for local gedcom parsing or as a gRPC service for gedcom parsing on AWS S3.
 ## Usage
+Please make sure to use the file extensions `.ged`, `.json` and `.protobuf` for respectively gedcom, json and protobuf files and to include them in the filepaths.
 ### Parsing local files
-* `gedcom-parser parse -inputFilePath=path/to/input/file -outputFilePath=path/to/output/file`
+* `gedcom-parser parse path/to/input/file path/to/output/file`
 ### gRPC service
 * `gedcom-parser serve` to launch server
 * call `Parse(PathsToFiles)` from any gRPC client to trigger a parse (refer to `grpc/parse.proto` for the exact signature)

@@ -6,10 +6,13 @@ import (
 	"os"
 )
 
+//var inputFilePath = flag.String("input", "", "path to input file")
+//var outputFilePath = flag.String("output", "", "path to output file")
+
 func main() {
 	switch os.Args[1] {
 	case "parse":
-		parse.Parse()
+		parse.Parse(os.Args[2], os.Args[3])
 	case "serve":
 		grpc.Serve()
 	}
