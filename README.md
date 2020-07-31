@@ -1,5 +1,12 @@
 # Gedcom parser
-This CLI application allows you to convert GEDCOM, JSON and Protobuf files representing family trees.
+This application can be used as a CLI application for local gedcom parsing or as a gRPC service for gedcom parsing on AWS S3.
+## Usage
+### Parsing local files
+* `gedcom-parser parse -inputFilePath=path/to/input/file -outputFilePath=path/to/output/file`
+### gRPC service
+* `gedcom-parser serve` to launch server
+* call `Parse(PathsToFiles)` from any gRPC client to trigger a parse (refer to `grpc/parse.proto` for the exact signature)
+   
 ## Examples
 ### GEDCOM -> JSON
 #### Input
