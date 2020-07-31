@@ -4,3 +4,5 @@ io
 # binaries
 gedcom-parser
 parse
+
+aws_config.go

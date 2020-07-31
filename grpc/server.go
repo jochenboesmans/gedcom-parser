@@ -3,6 +3,9 @@ package grpc
 import (
 	"bytes"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/jochenboesmans/gedcom-parser/parse"
 	remoteFileStorage "github.com/jochenboesmans/gedcom-parser/remote-file-storage"
 	"golang.org/x/net/context"
@@ -12,12 +15,22 @@ import (
 	"path/filepath"
 )
 
-type Server struct{}
+type Server struct {
+	downloader *s3manager.Downloader
+	uploader   *s3manager.Uploader
+}
+
+func (s *Server) init() {
+	sess := session.Must(session.NewSession(aws.NewConfig().WithRegion(remoteFileStorage.REGION)))
+
+	s.uploader = s3manager.NewUploader(sess)
+	s.downloader = s3manager.NewDownloader(sess)
+}
 
 func (s *Server) Parse(_ context.Context, paths *PathsToFiles) (*Result, error) {
 	log.Printf("started parsing %s to %s", paths.InputFilePath, paths.OutputFilePath)
 	log.Printf("reading from s3 bucket at %s...\n", paths.InputFilePath)
-	input, err := remoteFileStorage.S3Read(paths.InputFilePath)
+	input, err := remoteFileStorage.S3Read(paths.InputFilePath, s.downloader)
 	if err != nil {
 		errMessage := fmt.Sprintf("failed to read from s3: %s", err)
 		log.Println(errMessage)
@@ -71,7 +84,7 @@ func (s *Server) Parse(_ context.Context, paths *PathsToFiles) (*Result, error) 
 	}
 
 	log.Printf("writing to s3 bucket at %s...\n", paths.OutputFilePath)
-	_, err = remoteFileStorage.S3Write(paths.OutputFilePath, output)
+	_, err = remoteFileStorage.S3Write(paths.OutputFilePath, output, s.uploader)
 	if err != nil {
 		errMessage := fmt.Sprintf("failed to write to s3: %s", err)
 		log.Println(errMessage)
@@ -93,6 +106,7 @@ func Serve() {
 	}
 
 	s := Server{}
+	s.init()
 
 	grpcServer := grpc.NewServer()
 
