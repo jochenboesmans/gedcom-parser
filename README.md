@@ -13,8 +13,15 @@ Please make sure to use the file extensions `.ged`, `.json` and `.protobuf` for 
 ### Parsing local files
 * `gedcom-parser parse path/to/input/file path/to/output/file`
 ### gRPC service
+* set up an S3 bucket and create a .env file with your `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
 * `gedcom-parser serve` to launch server
 * call `Parse(PathsToFiles)` from any gRPC client to trigger a parse (refer to `grpc/parse.proto` for the exact signature)
+
+### Using Docker
+Run `docker run -e AWS_REGION=... -e AWS_S3_BUCKET=... -e AWS_ACCESS_KEY_ID=... -e AWS_SECRET_ACCESS_KEY=... -p 9000:9000 jochenboesmans/gedcom-parser serve|parse`
+
+Supplying AWS env variables is only necessary for running `serve`.
+
    
 ## Gedcom specification
 The gedcom model used is based on a limited subset of GEDCOM 5.5.1 as seen in the below proto spec:
