@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
-	"github.com/jochenboesmans/gedcom-parser/model"
 	"io"
 	"io/ioutil"
 	"log"
@@ -55,7 +54,7 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 	recordLines := []*gedcomSpec.Line{}
 	waitGroup := &sync.WaitGroup{}
 
-	gedcom := model.NewConcurrencySafeGedcom()
+	gedcom := gedcomSpec.NewConcurrencySafeGedcom()
 
 	i := 0
 	for fileScanner.Scan() {
@@ -88,7 +87,7 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 }
 
 func ParseJSON(inputReader io.Reader) (*[]byte, error) {
-	gedcom := &model.Gedcom{}
+	gedcom := &gedcomSpec.Gedcom{}
 
 	gedcomJson, err := ioutil.ReadAll(inputReader)
 	if err != nil {
@@ -106,7 +105,7 @@ func ParseJSON(inputReader io.Reader) (*[]byte, error) {
 }
 
 func ParseProtobuf(inputReader io.Reader) (*[]byte, error) {
-	var gedcom *model.Gedcom
+	var gedcom *gedcomSpec.Gedcom
 
 	gedcomProto, err := ioutil.ReadAll(inputReader)
 	if err != nil {
@@ -123,7 +122,7 @@ func ParseProtobuf(inputReader io.Reader) (*[]byte, error) {
 	return &gedcomBytes, nil
 }
 
-func WritableGedcom(gedcom *model.Gedcom) *bytes.Buffer {
+func WritableGedcom(gedcom *gedcomSpec.Gedcom) *bytes.Buffer {
 	buf := bytes.NewBuffer([]byte{})
 
 	header := "0 HEAD\n"
@@ -171,7 +170,7 @@ func WritableGedcom(gedcom *model.Gedcom) *bytes.Buffer {
 	return buf
 }
 
-func GedcomToJSON(gedcom *model.ConcurrencySafeGedcom) (*[]byte, error) {
+func GedcomToJSON(gedcom *gedcomSpec.ConcurrencySafeGedcom) (*[]byte, error) {
 	gedcomJson, err := json.Marshal(&gedcom.Gedcom)
 	if err != nil {
 		return nil, err
@@ -179,7 +178,7 @@ func GedcomToJSON(gedcom *model.ConcurrencySafeGedcom) (*[]byte, error) {
 	return &gedcomJson, nil
 }
 
-func GedcomToProto(gedcom *model.ConcurrencySafeGedcom) (*[]byte, error) {
+func GedcomToProto(gedcom *gedcomSpec.ConcurrencySafeGedcom) (*[]byte, error) {
 	gedcomProto, err := proto.Marshal(&gedcom.Gedcom)
 	if err != nil {
 		return nil, err

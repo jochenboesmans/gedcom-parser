@@ -1,7 +1,6 @@
-package model
+package gedcom
 
 import (
-	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
 	"strings"
 	"sync"
 )
@@ -18,7 +17,7 @@ func NewConcurrencySafeGedcom() *ConcurrencySafeGedcom {
 	}
 }
 
-func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*gedcomSpec.Line, waitGroup *sync.WaitGroup) {
+func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*Line, waitGroup *sync.WaitGroup) {
 	switch *recordLines[0].Tag() {
 	case "INDI":
 		g.interpretIndividualRecord(recordLines)
@@ -28,7 +27,7 @@ func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*gedcomSpec.Line, 
 	waitGroup.Done()
 }
 
-func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*gedcomSpec.Line) {
+func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 	individualXRefID := recordLines[0].XRefID()
 	individualInstance := Gedcom_Individual{
 		Id: *individualXRefID,
@@ -78,7 +77,7 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*gedcomS
 	g.unlock()
 }
 
-func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*gedcomSpec.Line) {
+func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {
 	familyId := recordLines[0].XRefID()
 	familyInstance := Gedcom_Family{Id: *familyId}
 	for i, line := range recordLines {
