@@ -10,13 +10,19 @@ message Gedcom {
         string Id = 1;
         repeated Name Names = 2;
         string Gender = 3;
+        Date BirthDate = 4;
+        Date DeathDate = 5;
 
         message Name {
             string GivenName = 1;
             string Surname = 2;
         }
+        message Date {
+            uint32 Year = 1;
+            uint32 Month = 2;
+            uint32 Day = 3;
+        }
     }
-
     message Family {
         string Id = 1;
         string FatherId = 2;
