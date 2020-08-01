@@ -148,6 +148,9 @@ func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buf
 		for _, n := range i.Names {
 			nameLine := fmt.Sprintf("1 NAME %s/%s/\n", n.GivenName, n.Surname)
 			buf.WriteString(nameLine)
+
+			primaryLine := fmt.Sprintf("2 _PRIM %s\n", primaryValueByBool[n.Primary])
+			buf.WriteString(primaryLine)
 		}
 
 		if i.BirthDate != nil {
@@ -245,4 +248,9 @@ var monthAbbrByInt = map[int]string{
 	10: "OCT",
 	11: "NOV",
 	12: "DEC",
+}
+
+var primaryValueByBool = map[bool]string{
+	true:  "Y",
+	false: "N",
 }

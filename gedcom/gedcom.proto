@@ -16,6 +16,7 @@ message Gedcom {
         message Name {
             string GivenName = 1;
             string Surname = 2;
+            bool Primary = 3;
         }
         message Date {
             uint32 Year = 1;

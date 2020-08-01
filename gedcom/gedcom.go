@@ -58,6 +58,14 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 						}
 					}
 				}
+				for _, nameLine := range recordLines[i+1:] {
+					if *nameLine.Level() < 2 {
+						break
+					}
+					if *nameLine.Tag() == "_PRIM" {
+						name.Primary = primaryBoolByValue[strings.ToUpper(*nameLine.Value())]
+					}
+				}
 				if name.GivenName != "" || name.Surname != "" {
 					individualInstance.Names = append(individualInstance.Names, &name)
 				}
@@ -207,4 +215,9 @@ func (g *ConcurrencySafeGedcom) removeFamilyAt(i int) {
 func withoutFamily(families []*Gedcom_Family, index int) []*Gedcom_Family {
 	families[len(families)-1], families[index] = families[index], families[len(families)-1]
 	return families[:len(families)-1]
+}
+
+var primaryBoolByValue = map[string]bool{
+	"Y": true,
+	"N": false,
 }
