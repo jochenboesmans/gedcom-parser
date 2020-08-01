@@ -76,6 +76,8 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 		i++
 	}
 
+	waitGroup.Wait()
+
 	gedcom.RemoveInvalidFamilies()
 
 	switch filepath.Ext(to) {

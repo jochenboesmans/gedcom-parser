@@ -190,25 +190,31 @@ func (g *ConcurrencySafeGedcom) IndividualsByIds() map[string]*Gedcom_Individual
 func (g *ConcurrencySafeGedcom) RemoveInvalidFamilies() {
 	indexedIndividuals := g.IndividualsByIds()
 
+	familyIndicesToRemove := []int{}
+familiesLoop:
 	for i, f := range g.Families {
 		if _, ok := indexedIndividuals[f.MotherId]; !ok {
-			g.removeFamilyAt(i)
+			familyIndicesToRemove = append(familyIndicesToRemove, i)
+			continue
 		}
-
 		if _, ok := indexedIndividuals[f.FatherId]; !ok {
-			g.removeFamilyAt(i)
+			familyIndicesToRemove = append(familyIndicesToRemove, i)
+			continue
 		}
 		for _, childId := range f.ChildIds {
 			if _, ok := indexedIndividuals[childId]; !ok {
-				g.removeFamilyAt(i)
+				familyIndicesToRemove = append(familyIndicesToRemove, i)
+				continue familiesLoop
 			}
 		}
 	}
 }
 
-func (g *ConcurrencySafeGedcom) removeFamilyAt(i int) {
+func (g *ConcurrencySafeGedcom) removeFamiliesAt(i []int) {
 	g.rwlock.Lock()
-	g.Families = withoutFamily(g.Families, i)
+	for _, index := range i {
+		g.Families = withoutFamily(g.Families, index)
+	}
 	g.rwlock.Unlock()
 }
 
