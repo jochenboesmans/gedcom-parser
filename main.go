@@ -7,20 +7,27 @@ import (
 	"os"
 )
 
-//var inputFilePath = flag.String("input", "", "path to input file")
-//var outputFilePath = flag.String("output", "", "path to output file")
-
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatalln("please choose a command (parse|serve)")
-	}
+	checkMainArg()
 	switch os.Args[1] {
 	case "parse":
-		if len(os.Args) < 4 {
-			log.Fatalln("please supply inputFilePath and outputFilePath respectively")
-		}
+		checkFilepathArgs()
 		parse.Parse(os.Args[2], os.Args[3])
 	case "serve":
 		grpc.Serve()
+	default:
+		log.Fatalln("please choose a command in (parse|serve)")
+	}
+}
+
+func checkMainArg() {
+	if len(os.Args) < 2 {
+		log.Fatalln("please choose a command (parse|serve)")
+	}
+}
+
+func checkFilepathArgs() {
+	if len(os.Args) < 4 {
+		log.Fatalln("please supply inputFilePath and outputFilePath respectively")
 	}
 }
