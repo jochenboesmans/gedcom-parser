@@ -1,12 +1,9 @@
-FROM golang:1.14 AS builder
+FROM golang:1.14.6 AS getter
+RUN go get -d github.com/jochenboesmans/gedcom-parser
+RUN GOARCH=amd64 GOOS=linux go build github.com/jochenboesmans/gedcom-parser
 
-WORKDIR /build
-COPY . .
-RUN go build
-
-FROM alpine AS runner
-
-WORKDIR /app
-COPY --from=builder /build .
-
-CMD ["./gedcom-parser"]
+FROM ubuntu AS runner
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
+COPY --from=getter /go/gedcom-parser /bin/gedcom-parser
+EXPOSE 9000
+ENTRYPOINT ["gedcom-parser"]
