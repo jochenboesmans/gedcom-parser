@@ -1,6 +1,7 @@
 package gedcom
 
 import (
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -69,12 +70,67 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 						individualInstance.Gender = "FEMALE"
 					}
 				}
+			case "BIRT":
+				for _, birthLine := range recordLines[i+1:] {
+					if *birthLine.Level() < 2 {
+						break
+					}
+					if *recordLines[i+1].Tag() == "DATE" {
+						birthDate := parseDate(recordLines[i+1])
+						individualInstance.BirthDate = birthDate
+					}
+				}
+			case "DEAT":
+				for _, deathLine := range recordLines[i+1:] {
+					if *deathLine.Level() < 2 {
+						break
+					}
+					if *recordLines[i+1].Tag() == "DATE" {
+						deathDate := parseDate(recordLines[i+1])
+						individualInstance.DeathDate = deathDate
+					}
+				}
 			}
 		}
 	}
 	g.lock()
 	g.Gedcom.Individuals = append(g.Gedcom.Individuals, &individualInstance)
 	g.unlock()
+}
+
+func parseDate(line *Line) *Gedcom_Individual_Date {
+	monthIntByAbbr := map[string]int{
+		"JAN": 1,
+		"FEB": 2,
+		"MAR": 3,
+		"APR": 4,
+		"MAY": 5,
+		"JUN": 6,
+		"JUL": 7,
+		"AUG": 8,
+		"SEP": 9,
+		"OCT": 10,
+		"NOV": 11,
+		"DEC": 12,
+	}
+	dateParts := strings.SplitN(*line.Value(), " ", 3)
+	date := &Gedcom_Individual_Date{}
+	if len(dateParts) > 0 {
+		if year, err := strconv.Atoi(dateParts[0]); err == nil {
+			date.Year = uint32(year)
+		}
+	}
+	if len(dateParts) > 1 {
+		if month, ok := monthIntByAbbr[strings.ToUpper(dateParts[1])]; ok {
+			date.Month = uint32(month)
+		}
+	}
+	if len(dateParts) > 2 {
+		if day, err := strconv.Atoi(dateParts[2]); err == nil {
+			date.Day = uint32(day)
+		}
+	}
+	return date
 }
 
 func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {

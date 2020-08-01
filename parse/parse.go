@@ -150,6 +150,39 @@ func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buf
 			buf.WriteString(nameLine)
 		}
 
+		if i.BirthDate != nil {
+			firstLine := fmt.Sprintf("1 BIRT\n")
+			buf.WriteString(firstLine)
+
+			var secondLine string
+			if i.BirthDate.Year != 0 && i.BirthDate.Month != 0 && i.BirthDate.Day != 0 {
+				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", i.BirthDate.Day, monthAbbrByInt[int(i.BirthDate.Month)], i.BirthDate.Year)
+			} else if i.BirthDate.Year != 0 && i.BirthDate.Month != 0 {
+				secondLine = fmt.Sprintf("2 DATE %s %d\n", monthAbbrByInt[int(i.BirthDate.Month)], i.BirthDate.Year)
+			} else if i.BirthDate.Year != 0 {
+				secondLine = fmt.Sprintf("2 DATE %d\n", i.BirthDate.Year)
+			}
+			if secondLine != "" {
+				buf.WriteString(firstLine)
+			}
+		}
+		if i.DeathDate != nil {
+			firstLine := fmt.Sprintf("1 DEAT\n")
+			buf.WriteString(firstLine)
+
+			var secondLine string
+			if i.DeathDate.Year != 0 && i.DeathDate.Month != 0 && i.BirthDate.Day != 0 {
+				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", i.DeathDate.Day, monthAbbrByInt[int(i.DeathDate.Month)], i.DeathDate.Year)
+			} else if i.DeathDate.Year != 0 && i.DeathDate.Month != 0 {
+				secondLine = fmt.Sprintf("2 DATE %s %d\n", monthAbbrByInt[int(i.DeathDate.Month)], i.BirthDate.Year)
+			} else if i.DeathDate.Year != 0 {
+				secondLine = fmt.Sprintf("2 DATE %d\n", i.DeathDate.Year)
+			}
+			if secondLine != "" {
+				buf.WriteString(firstLine)
+			}
+		}
+
 		genderMap := map[string]string{
 			"MALE":   "M",
 			"FEMALE": "F",
@@ -197,4 +230,19 @@ func GedcomToProto(gedcom *gedcomSpec.ConcurrencySafeGedcom) (*[]byte, error) {
 		return nil, err
 	}
 	return &gedcomProto, nil
+}
+
+var monthAbbrByInt = map[int]string{
+	1:  "JAN",
+	2:  "FEB",
+	3:  "MAR",
+	4:  "APR",
+	5:  "MAY",
+	6:  "JUN",
+	7:  "JUL",
+	8:  "AUG",
+	9:  "SEP",
+	10: "OCT",
+	11: "NOV",
+	12: "DEC",
 }
