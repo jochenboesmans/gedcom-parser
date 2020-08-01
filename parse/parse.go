@@ -76,6 +76,8 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 		i++
 	}
 
+	gedcom.RemoveInvalidFamilies()
+
 	switch filepath.Ext(to) {
 	case ".json":
 		return GedcomToJSON(gedcom)
@@ -87,42 +89,53 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 }
 
 func ParseJSON(inputReader io.Reader) (*[]byte, error) {
-	gedcom := &gedcomSpec.Gedcom{}
+	gedcom := gedcomSpec.Gedcom{}
 
 	gedcomJson, err := ioutil.ReadAll(inputReader)
 	if err != nil {
 		return nil, err
 	}
 
-	err = json.Unmarshal(gedcomJson, gedcom)
+	err = json.Unmarshal(gedcomJson, &gedcom)
 	if err != nil {
 		return nil, err
 	}
 
-	gedcomBuf := WritableGedcom(gedcom)
+	concSafeGedcom := gedcomSpec.NewConcurrencySafeGedcom()
+	concSafeGedcom.Gedcom = gedcom
+
+	concSafeGedcom.RemoveInvalidFamilies()
+
+	gedcomBuf := WritableGedcom(concSafeGedcom)
 	gedcomBytes := gedcomBuf.Bytes()
 	return &gedcomBytes, nil
 }
 
 func ParseProtobuf(inputReader io.Reader) (*[]byte, error) {
-	var gedcom *gedcomSpec.Gedcom
+	var gedcom gedcomSpec.Gedcom
 
 	gedcomProto, err := ioutil.ReadAll(inputReader)
 	if err != nil {
 		return nil, err
 	}
 
-	err = proto.Unmarshal(gedcomProto, gedcom)
+	err = proto.Unmarshal(gedcomProto, &gedcom)
 	if err != nil {
 		return nil, err
 	}
 
-	gedcomBuf := WritableGedcom(gedcom)
+	concSafeGedcom := gedcomSpec.NewConcurrencySafeGedcom()
+	concSafeGedcom.Gedcom = gedcom
+
+	concSafeGedcom.RemoveInvalidFamilies()
+
+	gedcomBuf := WritableGedcom(concSafeGedcom)
 	gedcomBytes := gedcomBuf.Bytes()
 	return &gedcomBytes, nil
 }
 
-func WritableGedcom(gedcom *gedcomSpec.Gedcom) *bytes.Buffer {
+func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buffer {
+	gedcom := concSafeGedcom.Gedcom
 	buf := bytes.NewBuffer([]byte{})
 
 	header := "0 HEAD\n"
