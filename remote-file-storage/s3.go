@@ -5,12 +5,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"os"
 )
 
 func S3Read(pathToFile string, downloader *s3manager.Downloader) (*[]byte, error) {
 	buffer := aws.WriteAtBuffer{}
 	_, err := downloader.Download(&buffer, &s3.GetObjectInput{
-		Bucket: aws.String(S3_BUCKET),
+		Bucket: aws.String(os.Getenv("AWS_S3_BUCKET")),
 		Key:    aws.String(pathToFile),
 	})
 	if err != nil {
@@ -25,7 +26,7 @@ func S3Write(pathToFile string, content *[]byte, uploader *s3manager.Uploader) (
 	r := bytes.NewReader(*content)
 
 	return uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(S3_BUCKET),
+		Bucket: aws.String(os.Getenv("AWS_S3_BUCKET")),
 		Key:    aws.String(pathToFile),
 		Body:   r,
 	})

@@ -3,9 +3,16 @@ package main
 import (
 	"github.com/jochenboesmans/gedcom-parser/grpc"
 	"github.com/jochenboesmans/gedcom-parser/parse"
+	"github.com/joho/godotenv"
 	"log"
 	"os"
 )
+
+func init() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found. Some functionality might not work.")
+	}
+}
 
 func main() {
 	checkMainArg()

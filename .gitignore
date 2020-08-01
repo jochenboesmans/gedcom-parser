@@ -1,7 +1,6 @@
 .idea
+.env
 io
 
 # binaries
 gedcom-parser
-
-aws_config.go

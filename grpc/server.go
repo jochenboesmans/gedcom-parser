@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"os"
 	"path/filepath"
 )
 
@@ -21,7 +22,7 @@ type Server struct {
 }
 
 func (s *Server) init() {
-	sess := session.Must(session.NewSession(aws.NewConfig().WithRegion(remoteFileStorage.REGION)))
+	sess := session.Must(session.NewSession(aws.NewConfig().WithRegion(os.Getenv("AWS_REGION"))))
 
 	s.uploader = s3manager.NewUploader(sess)
 	s.downloader = s3manager.NewDownloader(sess)

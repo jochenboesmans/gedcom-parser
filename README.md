@@ -7,7 +7,7 @@ This application can be used as a CLI application for local gedcom parsing or as
 2. Unzip it
 3. Add the resulting binary to your `$PATH`
 ### Using Go
-Run `go install github.com/jochenboesmans/gedcom-parser`
+Run `go get github.com/jochenboesmans/gedcom-parser`
 ## Usage
 Please make sure to use the file extensions `.ged`, `.json` and `.protobuf` for respectively gedcom, json and protobuf files and to include them in the filepaths.
 ### Parsing local files
