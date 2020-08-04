@@ -1,5 +1,5 @@
 # Gedcom parser
-This application can be used as a CLI application for local gedcom parsing or as a gRPC service for gedcom parsing on AWS S3.
+Application for local gedcom parsing and gRPC service for gedcom parsing on AWS S3.
 
 ## Installation
 ### Using binary
