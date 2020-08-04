@@ -2,6 +2,7 @@ package gedcom
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -33,7 +34,7 @@ func (gedcomLine *Line) Level() *uint8 {
 		levelUint8 := uint8(level)
 		result = &levelUint8
 		if result == nil {
-			panic("no value for required field 'tag' of gedcom line.")
+			log.Println("no value for required field 'level' of gedcom line.")
 		}
 	}
 	gedcomLine.levelMemo = result
@@ -77,7 +78,7 @@ func (gedcomLine *Line) Tag() *string {
 		}
 	}
 	if result == nil {
-		panic("no value for required field 'tag' of gedcom line.")
+		log.Printf("no value for required field 'tag' of gedcom line.")
 	}
 	gedcomLine.tagMemo = result
 	gedcomLine.valueMemo = valueToMemo
