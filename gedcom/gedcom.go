@@ -227,3 +227,23 @@ var primaryBoolByValue = map[string]bool{
 	"Y": true,
 	"N": false,
 }
+
+// ensures any non-utf8 chars that were encoded during parsing of original gedcom are decoded again
+func (g *ConcurrencySafeGedcom) DecodeUnicodeFields() error {
+	for _, i := range g.Gedcom.Individuals {
+		for _, n := range i.Names {
+			decodedGivenName, err := strconv.Unquote(n.GivenName)
+			if err != nil {
+				return err
+			}
+			n.GivenName = decodedGivenName
+
+			decodedSurname, err := strconv.Unquote(n.Surname)
+			if err != nil {
+				return err
+			}
+			n.Surname = decodedSurname
+		}
+	}
+	return nil
+}

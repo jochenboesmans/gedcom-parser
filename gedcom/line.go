@@ -59,7 +59,7 @@ func (gedcomLine *Line) Tag() *string {
 	}
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
 	var result *string = nil
-	var valueToMemo *string = nil
+	var valueToMemo string
 	if len(parts) >= 2 && parts[1][0] != '@' {
 		result = &parts[1]
 	}
@@ -67,21 +67,22 @@ func (gedcomLine *Line) Tag() *string {
 		result = &parts[2]
 	}
 	if len(parts) == 3 && parts[1][0] != '@' {
-		valueToMemo = &parts[2]
+		valueToMemo = parts[2]
 	}
 	if len(parts) == 4 {
 		if parts[1][0] == '@' {
-			valueToMemo = &parts[3]
+			valueToMemo = parts[3]
 		} else {
 			lastParts := parts[2] + " " + parts[3]
-			valueToMemo = &lastParts
+			valueToMemo = lastParts
 		}
 	}
 	if result == nil {
 		log.Printf("no value for required field 'tag' of gedcom line.")
 	}
 	gedcomLine.tagMemo = result
-	gedcomLine.valueMemo = valueToMemo
+	safeValueMemo := strconv.QuoteToASCII(valueToMemo)
+	gedcomLine.valueMemo = &safeValueMemo
 	return result
 }
 
@@ -90,8 +91,8 @@ func (gedcomLine *Line) Value() *string {
 		return gedcomLine.valueMemo
 	}
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
-	var result *string = nil
-	var tagToMemo *string = nil
+	var result string
+	var tagToMemo *string
 	if len(parts) >= 2 && parts[1][0] != '@' {
 		tagToMemo = &parts[1]
 	}
@@ -99,17 +100,18 @@ func (gedcomLine *Line) Value() *string {
 		tagToMemo = &parts[2]
 	}
 	if len(parts) == 3 && parts[1][0] != '@' {
-		result = &parts[2]
+		result = parts[2]
 	}
 	if len(parts) == 4 {
 		if parts[1][0] == '@' {
-			result = &parts[3]
+			result = parts[3]
 		} else {
 			lastParts := parts[2] + " " + parts[3]
-			result = &lastParts
+			result = lastParts
 		}
 	}
 	gedcomLine.tagMemo = tagToMemo
-	gedcomLine.valueMemo = result
-	return result
+	safeResult := strconv.QuoteToASCII(result)
+	gedcomLine.valueMemo = &safeResult
+	return &safeResult
 }

@@ -68,6 +68,8 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 
 		// interpret record once it's fully read
 		if len(recordLines) > 0 && *gedcomLine.Level() == 0 {
+			waitGroup.Add(1)
+			go gedcom.InterpretRecord(recordLines, waitGroup)
 			recordLines = []*gedcomSpec.Line{}
 		}
 		recordLines = append(recordLines, gedcomLine)
@@ -135,6 +137,9 @@ func ParseProtobuf(inputReader io.Reader) (*[]byte, error) {
 }
 
 func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buffer {
+	// try to decode non-utf8 fields, keep encoded version if it fails
+	_ = concSafeGedcom.DecodeUnicodeFields()
+
 	gedcom := concSafeGedcom.Gedcom
 	buf := bytes.NewBuffer([]byte{})
 
