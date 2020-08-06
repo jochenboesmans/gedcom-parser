@@ -1,4 +1,4 @@
-FROM golang:1.14.6 AS getter
+FROM golang:1.14.7 AS getter
 RUN go get -d github.com/jochenboesmans/gedcom-parser
 RUN GOARCH=amd64 GOOS=linux go build github.com/jochenboesmans/gedcom-parser
 
