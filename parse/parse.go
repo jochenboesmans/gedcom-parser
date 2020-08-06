@@ -158,36 +158,59 @@ func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buf
 			buf.WriteString(primaryLine)
 		}
 
-		if i.BirthDate != nil {
+		for _, b := range i.BirthEvents {
 			firstLine := fmt.Sprintf("1 BIRT\n")
 			buf.WriteString(firstLine)
 
 			var secondLine string
-			if i.BirthDate.Year != 0 && i.BirthDate.Month != 0 && i.BirthDate.Day != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", i.BirthDate.Day, monthAbbrByInt[int(i.BirthDate.Month)], i.BirthDate.Year)
-			} else if i.BirthDate.Year != 0 && i.BirthDate.Month != 0 {
-				secondLine = fmt.Sprintf("2 DATE %s %d\n", monthAbbrByInt[int(i.BirthDate.Month)], i.BirthDate.Year)
-			} else if i.BirthDate.Year != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d\n", i.BirthDate.Year)
+			if b.Date.Year != 0 && b.Date.Month != 0 && b.Date.Day != 0 {
+				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", b.Date.Day, monthAbbrByInt[int(b.Date.Month)], b.Date.Year)
+			} else if b.Date.Year != 0 && b.Date.Month != 0 {
+				secondLine = fmt.Sprintf("2 DATE %s %d\n", monthAbbrByInt[int(b.Date.Month)], b.Date.Year)
+			} else if b.Date.Year != 0 {
+				secondLine = fmt.Sprintf("2 DATE %d\n", b.Date.Year)
 			}
 			if secondLine != "" {
 				buf.WriteString(firstLine)
 			}
+
+			if b.Place != "" {
+				placeLine := fmt.Sprintf("2 PLAC %s\n", b.Place)
+				buf.WriteString(placeLine)
+			}
+
+			if b.Primary {
+				buf.WriteString(fmt.Sprintf("2 _PRIM Y"))
+			} else {
+				buf.WriteString(fmt.Sprintf("2 _PRIM N"))
+			}
 		}
-		if i.DeathDate != nil {
+
+		for _, d := range i.DeathEvents {
 			firstLine := fmt.Sprintf("1 DEAT\n")
 			buf.WriteString(firstLine)
 
 			var secondLine string
-			if i.DeathDate.Year != 0 && i.DeathDate.Month != 0 && i.BirthDate.Day != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", i.DeathDate.Day, monthAbbrByInt[int(i.DeathDate.Month)], i.DeathDate.Year)
-			} else if i.DeathDate.Year != 0 && i.DeathDate.Month != 0 {
-				secondLine = fmt.Sprintf("2 DATE %s %d\n", monthAbbrByInt[int(i.DeathDate.Month)], i.BirthDate.Year)
-			} else if i.DeathDate.Year != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d\n", i.DeathDate.Year)
+			if d.Date.Year != 0 && d.Date.Month != 0 && d.Date.Day != 0 {
+				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", d.Date.Day, monthAbbrByInt[int(d.Date.Month)], d.Date.Year)
+			} else if d.Date.Year != 0 && d.Date.Month != 0 {
+				secondLine = fmt.Sprintf("2 DATE %s %d\n", monthAbbrByInt[int(d.Date.Month)], d.Date.Year)
+			} else if d.Date.Year != 0 {
+				secondLine = fmt.Sprintf("2 DATE %d\n", d.Date.Year)
 			}
 			if secondLine != "" {
 				buf.WriteString(firstLine)
+			}
+
+			if d.Place != "" {
+				placeLine := fmt.Sprintf("2 PLAC %s\n", d.Place)
+				buf.WriteString(placeLine)
+			}
+
+			if d.Primary {
+				buf.WriteString(fmt.Sprintf("2 _PRIM Y"))
+			} else {
+				buf.WriteString(fmt.Sprintf("2 _PRIM N"))
 			}
 		}
 

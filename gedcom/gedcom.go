@@ -79,23 +79,49 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 					}
 				}
 			case "BIRT":
+				b := Gedcom_Individual_Event{
+					Date:    nil,
+					Place:   "",
+					Primary: false,
+				}
 				for _, birthLine := range recordLines[i+1:] {
 					if *birthLine.Level() < 2 {
 						break
 					}
-					if *recordLines[i+1].Tag() == "DATE" {
-						birthDate := parseDate(recordLines[i+1])
-						individualInstance.BirthDate = birthDate
+					if *birthLine.Tag() == "DATE" {
+						birthDate := parseDate(birthLine)
+						b.Date = birthDate
+					}
+					if *birthLine.Tag() == "PLAC" {
+						b.Place = *birthLine.Value()
+					}
+					if *birthLine.Tag() == "_PRIM" {
+						if primaryValue, ok := primaryBoolByValue[*birthLine.Value()]; ok {
+							b.Primary = primaryValue
+						}
 					}
 				}
 			case "DEAT":
+				d := Gedcom_Individual_Event{
+					Date:    nil,
+					Place:   "",
+					Primary: false,
+				}
 				for _, deathLine := range recordLines[i+1:] {
 					if *deathLine.Level() < 2 {
 						break
 					}
-					if *recordLines[i+1].Tag() == "DATE" {
-						deathDate := parseDate(recordLines[i+1])
-						individualInstance.DeathDate = deathDate
+					if *deathLine.Tag() == "DATE" {
+						deathDate := parseDate(deathLine)
+						d.Date = deathDate
+					}
+					if *deathLine.Tag() == "PLAC" {
+						d.Place = *deathLine.Value()
+					}
+					if *deathLine.Tag() == "_PRIM" {
+						if primaryValue, ok := primaryBoolByValue[*deathLine.Value()]; ok {
+							d.Primary = primaryValue
+						}
 					}
 				}
 			}
