@@ -10,9 +10,14 @@ message Gedcom {
         string Id = 1;
         repeated Name Names = 2;
         string Gender = 3;
-        Date BirthDate = 4;
-        Date DeathDate = 5;
+        repeated Event BirthEvents = 4;
+        repeated Event DeathEvents = 5;
 
+        message Event {
+            Date Date = 1;
+            string Place = 2;
+            bool Primary = 3;
+        }
         message Name {
             string GivenName = 1;
             string Surname = 2;
