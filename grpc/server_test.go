@@ -1,3 +1,5 @@
+//+build grpc_server
+
 package grpc
 
 import (

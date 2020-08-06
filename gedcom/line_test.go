@@ -1,6 +1,7 @@
 package gedcom
 
 import (
+	"strconv"
 	"testing"
 )
 
@@ -47,7 +48,15 @@ func TestLine_Tag(t *testing.T) {
 }
 
 func TestLine_Value(t *testing.T) {
-	expectedValues := []string{"", "", "Robert Eugene/Williams/", "M", "", "02 OCT 1822", "@4@"}
+	expectedValues := []string{
+		strconv.QuoteToASCII(""),
+		strconv.QuoteToASCII(""),
+		strconv.QuoteToASCII("Robert Eugene/Williams/"),
+		strconv.QuoteToASCII("M"),
+		strconv.QuoteToASCII(""),
+		strconv.QuoteToASCII("02 OCT 1822"),
+		strconv.QuoteToASCII("@4@"),
+	}
 	for i, line := range gedcomLines {
 		l := NewLine(&line)
 		if l.Value() != nil && *l.Value() != expectedValues[i] {
