@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
+	"github.com/jochenboesmans/gedcom-parser/util"
 	"io"
 	"io/ioutil"
 	"log"
@@ -17,12 +18,17 @@ import (
 	"time"
 )
 
+/*
+Parse local files representing a gedcom structure to a different format representing the same structure.
+
+Example usage: Parse("./familytree.ged", "./familytree.json") would parse the GEDCOM file at ./familytree.ged into a json structure and put the result in a file at ./familytree.json.
+*/
 func Parse(inputFilePath string, outputFilePath string) {
 	beginTime := time.Now()
 
 	input, err := ioutil.ReadFile(inputFilePath)
 	if err != nil {
-		log.Fatalf("failed to open input file at %s\n", inputFilePath)
+		log.Fatalf("failed to read from input file at %s with error: %s\n", inputFilePath, err)
 	}
 
 	var output *[]byte
@@ -31,20 +37,30 @@ func Parse(inputFilePath string, outputFilePath string) {
 	switch filepath.Ext(inputFilePath) {
 	case ".ged":
 		output, err = ParseGedcom(inputReader, outputFilePath)
+		if err != nil {
+			log.Fatalf("failed to parse GEDCOM file at %s with error: %s\n", inputFilePath, err)
+		}
 	case ".json":
 		output, err = ParseJSON(inputReader)
+		if err != nil {
+			log.Fatalf("failed to parse JSON file at %s with error: %s\n", inputFilePath, err)
+		}
 	case ".protobuf":
 		output, err = ParseProtobuf(inputReader)
+		if err != nil {
+			log.Fatalf("failed to parse Protobuf file at %s with error: %s\n", inputFilePath, err)
+		}
 	default:
-		log.Fatalf("failed to match input file extension to: .ged|.json|.protobuf\n")
+		log.Fatalf("failed to match input file (at %s) extension to: .ged|.json|.protobuf\n", inputFilePath)
 	}
 
 	err = ioutil.WriteFile(outputFilePath, *output, 0600)
 	if err != nil {
-		log.Fatalf("failed to write to output file at %s\n", outputFilePath)
+		log.Fatalf("failed to write to output file at %s with error: %s\n", outputFilePath, err)
 	}
 
-	fmt.Printf("total time taken: %f second.\n", float64(time.Since(beginTime))*math.Pow10(-9))
+	secondsSinceBeginTime := float64(time.Since(beginTime)) * math.Pow10(-9)
+	fmt.Printf("successfully parsed file at %s to %s. total time taken: %f seconds\n", inputFilePath, outputFilePath, secondsSinceBeginTime)
 }
 
 func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
@@ -154,7 +170,7 @@ func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buf
 			nameLine := fmt.Sprintf("1 NAME %s/%s/\n", n.GivenName, n.Surname)
 			buf.WriteString(nameLine)
 
-			primaryLine := fmt.Sprintf("2 _PRIM %s\n", primaryValueByBool[n.Primary])
+			primaryLine := fmt.Sprintf("2 _PRIM %s\n", util.PrimaryValueByBool[n.Primary])
 			buf.WriteString(primaryLine)
 		}
 
@@ -164,9 +180,9 @@ func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buf
 
 			var secondLine string
 			if b.Date.Year != 0 && b.Date.Month != 0 && b.Date.Day != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", b.Date.Day, monthAbbrByInt[int(b.Date.Month)], b.Date.Year)
+				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", b.Date.Day, util.MonthAbbrByInt[int(b.Date.Month)], b.Date.Year)
 			} else if b.Date.Year != 0 && b.Date.Month != 0 {
-				secondLine = fmt.Sprintf("2 DATE %s %d\n", monthAbbrByInt[int(b.Date.Month)], b.Date.Year)
+				secondLine = fmt.Sprintf("2 DATE %s %d\n", util.MonthAbbrByInt[int(b.Date.Month)], b.Date.Year)
 			} else if b.Date.Year != 0 {
 				secondLine = fmt.Sprintf("2 DATE %d\n", b.Date.Year)
 			}
@@ -179,11 +195,8 @@ func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buf
 				buf.WriteString(placeLine)
 			}
 
-			if b.Primary {
-				buf.WriteString(fmt.Sprintf("2 _PRIM Y"))
-			} else {
-				buf.WriteString(fmt.Sprintf("2 _PRIM N"))
-			}
+			primaryLine := fmt.Sprintf("2 _PRIM %s\n", util.PrimaryValueByBool[b.Primary])
+			buf.WriteString(primaryLine)
 		}
 
 		for _, d := range i.DeathEvents {
@@ -192,9 +205,9 @@ func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buf
 
 			var secondLine string
 			if d.Date.Year != 0 && d.Date.Month != 0 && d.Date.Day != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", d.Date.Day, monthAbbrByInt[int(d.Date.Month)], d.Date.Year)
+				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", d.Date.Day, util.MonthAbbrByInt[int(d.Date.Month)], d.Date.Year)
 			} else if d.Date.Year != 0 && d.Date.Month != 0 {
-				secondLine = fmt.Sprintf("2 DATE %s %d\n", monthAbbrByInt[int(d.Date.Month)], d.Date.Year)
+				secondLine = fmt.Sprintf("2 DATE %s %d\n", util.MonthAbbrByInt[int(d.Date.Month)], d.Date.Year)
 			} else if d.Date.Year != 0 {
 				secondLine = fmt.Sprintf("2 DATE %d\n", d.Date.Year)
 			}
@@ -207,19 +220,16 @@ func WritableGedcom(concSafeGedcom *gedcomSpec.ConcurrencySafeGedcom) *bytes.Buf
 				buf.WriteString(placeLine)
 			}
 
-			if d.Primary {
-				buf.WriteString(fmt.Sprintf("2 _PRIM Y"))
-			} else {
-				buf.WriteString(fmt.Sprintf("2 _PRIM N"))
+			if primaryValue, hit := util.PrimaryValueByBool[d.Primary]; hit {
+				primaryLine := fmt.Sprintf("2 _PRIM %s\n", primaryValue)
+				buf.WriteString(primaryLine)
 			}
 		}
 
-		genderMap := map[string]string{
-			"MALE":   "M",
-			"FEMALE": "F",
+		if genderLetter, hit := util.GenderLetterByFull[i.Gender]; hit {
+			genderLine := fmt.Sprintf("1 SEX %s\n", genderLetter)
+			buf.WriteString(genderLine)
 		}
-		genderLine := fmt.Sprintf("1 SEX %s\n", genderMap[i.Gender])
-		buf.WriteString(genderLine)
 	}
 
 	for _, f := range gedcom.Families {
@@ -261,24 +271,4 @@ func GedcomToProto(gedcom *gedcomSpec.ConcurrencySafeGedcom) (*[]byte, error) {
 		return nil, err
 	}
 	return &gedcomProto, nil
-}
-
-var monthAbbrByInt = map[int]string{
-	1:  "JAN",
-	2:  "FEB",
-	3:  "MAR",
-	4:  "APR",
-	5:  "MAY",
-	6:  "JUN",
-	7:  "JUL",
-	8:  "AUG",
-	9:  "SEP",
-	10: "OCT",
-	11: "NOV",
-	12: "DEC",
-}
-
-var primaryValueByBool = map[bool]string{
-	true:  "Y",
-	false: "N",
 }
