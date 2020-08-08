@@ -20,7 +20,11 @@ func NewConcurrencySafeGedcom() *ConcurrencySafeGedcom {
 }
 
 func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*Line, waitGroup *sync.WaitGroup) {
-	switch *recordLines[0].Tag() {
+	tag, err := recordLines[0].Tag()
+	if err != nil {
+		return
+	}
+	switch tag {
 	case "INDI":
 		g.interpretIndividualRecord(recordLines)
 	case "FAM":
@@ -32,23 +36,30 @@ func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*Line, waitGroup *
 func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 	individualXRefID := recordLines[0].XRefID()
 	individualInstance := Gedcom_Individual{
-		Id: *individualXRefID,
+		Id: individualXRefID,
 	}
-	for i, line := range recordLines {
-		if i != 0 && *line.Level() == 0 {
-			break
+	for i, line := range recordLines[1:] {
+		level, err := line.Level()
+		if err != nil {
+			continue
 		}
-		if *line.Level() == 1 {
-			switch *line.Tag() {
-			case "NAME":
-				g.interpretName(line, recordLines, i, &individualInstance)
-			case "SEX":
-				g.interpretSexLine(line, &individualInstance)
-			case "BIRT":
-				g.interpretIndividualEvent(recordLines, i, &individualInstance, "BIRT")
-			case "DEAT":
-				g.interpretIndividualEvent(recordLines, i, &individualInstance, "DEAT")
-			}
+		if level < 1 {
+			break // end of record
+		}
+
+		tag, err := line.Tag()
+		if err != nil {
+			continue
+		}
+		switch tag {
+		case "NAME":
+			g.interpretName(line, recordLines, i, &individualInstance)
+		case "SEX":
+			g.interpretSexLine(line, &individualInstance)
+		case "BIRT":
+			g.interpretIndividualEvent(recordLines, i, &individualInstance, "BIRT")
+		case "DEAT":
+			g.interpretIndividualEvent(recordLines, i, &individualInstance, "DEAT")
 		}
 	}
 	g.lock()
@@ -64,19 +75,28 @@ func (g *ConcurrencySafeGedcom) interpretIndividualEvent(recordLines []*Line, i 
 		Primary: false,
 	}
 	for _, eventLine := range recordLines[i+1:] {
-		if *eventLine.Level() < 2 {
-			break
+		level, err := eventLine.Level()
+		if err != nil {
+			continue
 		}
-		if *eventLine.Tag() == "DATE" {
+		if level < 2 {
+			break // end of event structure
+		}
+
+		tag, err := eventLine.Tag()
+		if err != nil {
+			continue
+		}
+		if tag == "DATE" {
 			birthDate := parseDate(eventLine)
 			e.Date = birthDate
 		}
-		if *eventLine.Tag() == "PLAC" {
-			e.Place = *eventLine.Value()
+		if tag == "PLAC" {
+			e.Place = eventLine.Value()
 		}
-		if *eventLine.Tag() == "_PRIM" {
-			if primaryValue, ok := util.PrimaryBoolByValue[*eventLine.Value()]; ok {
-				e.Primary = primaryValue
+		if tag == "_PRIM" {
+			if primaryBool, ok := util.PrimaryBoolByValue[eventLine.Value()]; ok {
+				e.Primary = primaryBool
 			}
 		}
 	}
@@ -91,36 +111,33 @@ func (g *ConcurrencySafeGedcom) interpretIndividualEvent(recordLines []*Line, i 
 
 func (g *ConcurrencySafeGedcom) interpretName(line *Line, recordLines []*Line, i int, individualInstance *Gedcom_Individual) {
 	name := Gedcom_Individual_Name{}
-	if line.Value() != nil {
-		if nameParts := strings.Split(*line.Value(), "/"); nameParts[0] != "" || nameParts[1] != "" {
-			name.GivenName = nameParts[0]
-			name.Surname = nameParts[1]
-		}
-	} else {
-		for _, nameLine := range recordLines[i+1:] {
-			if *nameLine.Level() < 2 {
-				break
-			}
-			switch *nameLine.Tag() {
-			case "GIVN":
-				if nameLine.Value() != nil {
-					name.GivenName = *nameLine.Value()
-				}
-			case "SURN":
-				if nameLine.Value() != nil {
-					name.Surname = *nameLine.Value()
-				}
-			}
-		}
+	if nameParts := strings.Split(line.Value(), "/"); nameParts[0] != "" || nameParts[1] != "" {
+		name.GivenName = nameParts[0]
+		name.Surname = nameParts[1]
 	}
 	for _, nameLine := range recordLines[i+1:] {
-		if *nameLine.Level() < 2 {
-			break
+		level, err := nameLine.Level()
+		if err != nil {
+			continue
 		}
-		if *nameLine.Tag() == "_PRIM" {
-			name.Primary = util.PrimaryBoolByValue[strings.ToUpper(*nameLine.Value())]
+		if level < 2 {
+			break // end  of name structure
+		}
+
+		tag, err := nameLine.Tag()
+		if err != nil {
+			continue
+		}
+		switch tag {
+		case "GIVN":
+			name.GivenName = nameLine.Value()
+		case "SURN":
+			name.Surname = nameLine.Value()
+		case "_PRIM":
+			name.Primary = util.PrimaryBoolByValue[strings.ToUpper(nameLine.Value())]
 		}
 	}
+
 	if name.GivenName != "" || name.Surname != "" {
 		individualInstance.Names = append(individualInstance.Names, &name)
 	}
@@ -128,18 +145,13 @@ func (g *ConcurrencySafeGedcom) interpretName(line *Line, recordLines []*Line, i
 }
 
 func (g *ConcurrencySafeGedcom) interpretSexLine(line *Line, individualInstance *Gedcom_Individual) {
-	if line.Value() != nil {
-		switch *line.Value() {
-		case "M":
-			individualInstance.Gender = "MALE"
-		case "F":
-			individualInstance.Gender = "FEMALE"
-		}
+	if genderFull, ok := util.GenderFullByLetter[line.Value()]; ok {
+		individualInstance.Gender = genderFull
 	}
 }
 
 func parseDate(line *Line) *Gedcom_Individual_Date {
-	dateParts := strings.SplitN(*line.Value(), " ", 3)
+	dateParts := strings.SplitN(line.Value(), " ", 3)
 	date := &Gedcom_Individual_Date{}
 	if len(dateParts) > 0 {
 		if year, err := strconv.Atoi(dateParts[0]); err == nil {
@@ -161,27 +173,27 @@ func parseDate(line *Line) *Gedcom_Individual_Date {
 
 func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {
 	familyId := recordLines[0].XRefID()
-	familyInstance := Gedcom_Family{Id: *familyId}
-	for i, line := range recordLines {
-		if i != 0 && *line.Level() == 0 {
-			break
+	familyInstance := Gedcom_Family{Id: familyId}
+	for _, line := range recordLines {
+		level, err := line.Level()
+		if err != nil {
+			continue
 		}
-		switch *line.Tag() {
+		if level < 1 {
+			break // end of record
+		}
+
+		tag, err := line.Tag()
+		if err != nil {
+			continue
+		}
+		switch tag {
 		case "HUSB":
-			if line.Value() != nil {
-				fatherId := line.Value()
-				familyInstance.FatherId = *fatherId
-			}
+			familyInstance.FatherId = line.Value()
 		case "WIFE":
-			if line.Value() != nil {
-				motherId := line.Value()
-				familyInstance.MotherId = *motherId
-			}
+			familyInstance.MotherId = line.Value()
 		case "CHIL":
-			if line.Value() != nil {
-				childId := line.Value()
-				familyInstance.ChildIds = append(familyInstance.ChildIds, *childId)
-			}
+			familyInstance.ChildIds = append(familyInstance.ChildIds, line.Value())
 		}
 	}
 	g.lock()

@@ -2,69 +2,71 @@ package gedcom
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 )
 
 type Line struct {
 	originalLine *string
-	levelMemo    *uint8
-	xRefIDMemo   *string
-	tagMemo      *string
-	valueMemo    *string
+	levelMemo    int8
+	xRefIDMemo   string
+	tagMemo      string
+	valueMemo    string
 }
 
 func NewLine(gedcomLinePtr *string) *Line {
 	return &Line{
 		originalLine: gedcomLinePtr,
+		levelMemo:    -1, // use -1 instead of 0 for unset field
 	}
 }
 
-func (gedcomLine *Line) Level() *uint8 {
-	if gedcomLine.levelMemo != nil {
-		return gedcomLine.levelMemo
+// required field, must have a value >= 0 in a valid line
+func (gedcomLine *Line) Level() (int8, error) {
+	if gedcomLine.levelMemo != -1 {
+		return gedcomLine.levelMemo, nil
 	}
+
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 2)
 	level, err := strconv.Atoi(parts[0])
-	var result *uint8 = nil
 	if err != nil {
-		fmt.Printf("%s", *gedcomLine.originalLine)
-	} else {
-		levelUint8 := uint8(level)
-		result = &levelUint8
-		if result == nil {
-			log.Println("no value for required field 'level' of gedcom line.")
-		}
+		gedcomLine.levelMemo = -1
+		return -1, err
 	}
+
+	result := int8(level)
 	gedcomLine.levelMemo = result
-	return result
+	return result, nil
 }
-func (gedcomLine *Line) XRefID() *string {
-	if gedcomLine.xRefIDMemo != nil {
+
+// optional field, can be an empty string in a valid line
+func (gedcomLine *Line) XRefID() string {
+	if gedcomLine.xRefIDMemo != "" {
 		return gedcomLine.xRefIDMemo
 	}
+
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 3)
-	var result *string = nil
+	result := ""
 	if len(parts) >= 2 && parts[1][0] == '@' {
-		result = &parts[1]
+		result = parts[1]
 	}
 	gedcomLine.xRefIDMemo = result
 	return result
 }
 
-func (gedcomLine *Line) Tag() *string {
-	if gedcomLine.tagMemo != nil {
-		return gedcomLine.tagMemo
+// required field, can't be an empty string in a valid line
+func (gedcomLine *Line) Tag() (string, error) {
+	if gedcomLine.tagMemo != "" {
+		return gedcomLine.tagMemo, nil
 	}
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
-	var result *string = nil
+	var result string
 	var valueToMemo string
 	if len(parts) >= 2 && parts[1][0] != '@' {
-		result = &parts[1]
+		result = parts[1]
 	}
 	if len(parts) >= 3 && parts[1][0] == '@' {
-		result = &parts[2]
+		result = parts[2]
 	}
 	if len(parts) == 3 && parts[1][0] != '@' {
 		valueToMemo = parts[2]
@@ -77,27 +79,29 @@ func (gedcomLine *Line) Tag() *string {
 			valueToMemo = lastParts
 		}
 	}
-	if result == nil {
-		log.Printf("no value for required field 'tag' of gedcom line.")
+
+	if result == "" {
+		return "", fmt.Errorf("no value for required field 'tag' of gedcom line")
 	}
+
 	gedcomLine.tagMemo = result
-	safeValueMemo := strconv.QuoteToASCII(valueToMemo)
-	gedcomLine.valueMemo = &safeValueMemo
-	return result
+	safeValueMemo := strconv.QuoteToASCII(valueToMemo) // encode unicode chars in line values
+	gedcomLine.valueMemo = safeValueMemo
+	return result, nil
 }
 
-func (gedcomLine *Line) Value() *string {
-	if gedcomLine.valueMemo != nil {
+func (gedcomLine *Line) Value() string {
+	if gedcomLine.valueMemo != "" {
 		return gedcomLine.valueMemo
 	}
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
 	var result string
-	var tagToMemo *string
+	var tagToMemo string
 	if len(parts) >= 2 && parts[1][0] != '@' {
-		tagToMemo = &parts[1]
+		tagToMemo = parts[1]
 	}
 	if len(parts) >= 3 && parts[1][0] == '@' {
-		tagToMemo = &parts[2]
+		tagToMemo = parts[2]
 	}
 	if len(parts) == 3 && parts[1][0] != '@' {
 		result = parts[2]
@@ -111,7 +115,7 @@ func (gedcomLine *Line) Value() *string {
 		}
 	}
 	gedcomLine.tagMemo = tagToMemo
-	safeResult := strconv.QuoteToASCII(result)
-	gedcomLine.valueMemo = &safeResult
-	return &safeResult
+	safeResult := strconv.QuoteToASCII(result) // encode unicode chars in line values
+	gedcomLine.valueMemo = safeResult
+	return safeResult
 }

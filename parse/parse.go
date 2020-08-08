@@ -82,8 +82,9 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 		}
 		gedcomLine := gedcomSpec.NewLine(&line)
 
+		level, err := gedcomLine.Level()
 		// interpret record once it's fully read
-		if len(recordLines) > 0 && *gedcomLine.Level() == 0 {
+		if len(recordLines) > 0 && err == nil && level == 0 {
 			waitGroup.Add(1)
 			go gedcom.InterpretRecord(recordLines, waitGroup)
 			recordLines = []*gedcomSpec.Line{}
