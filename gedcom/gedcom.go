@@ -1,6 +1,7 @@
 package gedcom
 
 import (
+	"github.com/jochenboesmans/gedcom-parser/util"
 	"strconv"
 	"strings"
 	"sync"
@@ -40,113 +41,104 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 		if *line.Level() == 1 {
 			switch *line.Tag() {
 			case "NAME":
-				name := Gedcom_Individual_Name{}
-				nameParts := strings.Split(*line.Value(), "/")
-				if nameParts[0] != "" || nameParts[1] != "" {
-					name.GivenName = nameParts[0]
-					name.Surname = nameParts[1]
-				} else {
-					for _, nameLine := range recordLines[i+1:] {
-						if *nameLine.Level() < 2 {
-							break
-						}
-						switch *nameLine.Tag() {
-						case "GIVN":
-							name.GivenName = *nameLine.Value()
-						case "SURN":
-							name.Surname = *nameLine.Value()
-						}
-					}
-				}
-				for _, nameLine := range recordLines[i+1:] {
-					if *nameLine.Level() < 2 {
-						break
-					}
-					if *nameLine.Tag() == "_PRIM" {
-						name.Primary = primaryBoolByValue[strings.ToUpper(*nameLine.Value())]
-					}
-				}
-				if name.GivenName != "" || name.Surname != "" {
-					individualInstance.Names = append(individualInstance.Names, &name)
-				}
+				g.interpretName(line, recordLines, i, &individualInstance)
 			case "SEX":
-				if line.Value() != nil {
-					switch *line.Value() {
-					case "M":
-						individualInstance.Gender = "MALE"
-					case "F":
-						individualInstance.Gender = "FEMALE"
-					}
-				}
+				g.interpretSexLine(line, &individualInstance)
 			case "BIRT":
-				b := Gedcom_Individual_Event{
-					Date:    nil,
-					Place:   "",
-					Primary: false,
-				}
-				for _, birthLine := range recordLines[i+1:] {
-					if *birthLine.Level() < 2 {
-						break
-					}
-					if *birthLine.Tag() == "DATE" {
-						birthDate := parseDate(birthLine)
-						b.Date = birthDate
-					}
-					if *birthLine.Tag() == "PLAC" {
-						b.Place = *birthLine.Value()
-					}
-					if *birthLine.Tag() == "_PRIM" {
-						if primaryValue, ok := primaryBoolByValue[*birthLine.Value()]; ok {
-							b.Primary = primaryValue
-						}
-					}
-				}
+				g.interpretIndividualEvent(recordLines, i, &individualInstance, "BIRT")
 			case "DEAT":
-				d := Gedcom_Individual_Event{
-					Date:    nil,
-					Place:   "",
-					Primary: false,
-				}
-				for _, deathLine := range recordLines[i+1:] {
-					if *deathLine.Level() < 2 {
-						break
-					}
-					if *deathLine.Tag() == "DATE" {
-						deathDate := parseDate(deathLine)
-						d.Date = deathDate
-					}
-					if *deathLine.Tag() == "PLAC" {
-						d.Place = *deathLine.Value()
-					}
-					if *deathLine.Tag() == "_PRIM" {
-						if primaryValue, ok := primaryBoolByValue[*deathLine.Value()]; ok {
-							d.Primary = primaryValue
-						}
-					}
-				}
+				g.interpretIndividualEvent(recordLines, i, &individualInstance, "DEAT")
 			}
 		}
 	}
 	g.lock()
 	g.Gedcom.Individuals = append(g.Gedcom.Individuals, &individualInstance)
 	g.unlock()
+
+}
+
+func (g *ConcurrencySafeGedcom) interpretIndividualEvent(recordLines []*Line, i int, individualInstance *Gedcom_Individual, kind string) {
+	e := Gedcom_Individual_Event{
+		Date:    nil,
+		Place:   "",
+		Primary: false,
+	}
+	for _, eventLine := range recordLines[i+1:] {
+		if *eventLine.Level() < 2 {
+			break
+		}
+		if *eventLine.Tag() == "DATE" {
+			birthDate := parseDate(eventLine)
+			e.Date = birthDate
+		}
+		if *eventLine.Tag() == "PLAC" {
+			e.Place = *eventLine.Value()
+		}
+		if *eventLine.Tag() == "_PRIM" {
+			if primaryValue, ok := util.PrimaryBoolByValue[*eventLine.Value()]; ok {
+				e.Primary = primaryValue
+			}
+		}
+	}
+
+	switch kind {
+	case "BIRT":
+		individualInstance.BirthEvents = append(individualInstance.BirthEvents, &e)
+	case "DEAT":
+		individualInstance.DeathEvents = append(individualInstance.DeathEvents, &e)
+	}
+}
+
+func (g *ConcurrencySafeGedcom) interpretName(line *Line, recordLines []*Line, i int, individualInstance *Gedcom_Individual) {
+	name := Gedcom_Individual_Name{}
+	if line.Value() != nil {
+		if nameParts := strings.Split(*line.Value(), "/"); nameParts[0] != "" || nameParts[1] != "" {
+			name.GivenName = nameParts[0]
+			name.Surname = nameParts[1]
+		}
+	} else {
+		for _, nameLine := range recordLines[i+1:] {
+			if *nameLine.Level() < 2 {
+				break
+			}
+			switch *nameLine.Tag() {
+			case "GIVN":
+				if nameLine.Value() != nil {
+					name.GivenName = *nameLine.Value()
+				}
+			case "SURN":
+				if nameLine.Value() != nil {
+					name.Surname = *nameLine.Value()
+				}
+			}
+		}
+	}
+	for _, nameLine := range recordLines[i+1:] {
+		if *nameLine.Level() < 2 {
+			break
+		}
+		if *nameLine.Tag() == "_PRIM" {
+			name.Primary = util.PrimaryBoolByValue[strings.ToUpper(*nameLine.Value())]
+		}
+	}
+	if name.GivenName != "" || name.Surname != "" {
+		individualInstance.Names = append(individualInstance.Names, &name)
+	}
+
+}
+
+func (g *ConcurrencySafeGedcom) interpretSexLine(line *Line, individualInstance *Gedcom_Individual) {
+	if line.Value() != nil {
+		switch *line.Value() {
+		case "M":
+			individualInstance.Gender = "MALE"
+		case "F":
+			individualInstance.Gender = "FEMALE"
+		}
+	}
 }
 
 func parseDate(line *Line) *Gedcom_Individual_Date {
-	monthIntByAbbr := map[string]int{
-		"JAN": 1,
-		"FEB": 2,
-		"MAR": 3,
-		"APR": 4,
-		"MAY": 5,
-		"JUN": 6,
-		"JUL": 7,
-		"AUG": 8,
-		"SEP": 9,
-		"OCT": 10,
-		"NOV": 11,
-		"DEC": 12,
-	}
 	dateParts := strings.SplitN(*line.Value(), " ", 3)
 	date := &Gedcom_Individual_Date{}
 	if len(dateParts) > 0 {
@@ -155,7 +147,7 @@ func parseDate(line *Line) *Gedcom_Individual_Date {
 		}
 	}
 	if len(dateParts) > 1 {
-		if month, ok := monthIntByAbbr[strings.ToUpper(dateParts[1])]; ok {
+		if month, ok := util.MonthIntByAbbr[strings.ToUpper(dateParts[1])]; ok {
 			date.Month = uint32(month)
 		}
 	}
@@ -234,24 +226,21 @@ familiesLoop:
 			}
 		}
 	}
+
+	g.removeFamiliesAt(familyIndicesToRemove)
 }
 
 func (g *ConcurrencySafeGedcom) removeFamiliesAt(i []int) {
-	g.rwlock.Lock()
+	g.lock()
 	for _, index := range i {
 		g.Families = withoutFamily(g.Families, index)
 	}
-	g.rwlock.Unlock()
+	g.unlock()
 }
 
 func withoutFamily(families []*Gedcom_Family, index int) []*Gedcom_Family {
 	families[len(families)-1], families[index] = families[index], families[len(families)-1]
 	return families[:len(families)-1]
-}
-
-var primaryBoolByValue = map[string]bool{
-	"Y": true,
-	"N": false,
 }
 
 // ensures any non-utf8 chars that were encoded during parsing of original gedcom are decoded again
