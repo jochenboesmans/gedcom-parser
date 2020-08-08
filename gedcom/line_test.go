@@ -16,11 +16,11 @@ var gedcomLines = []string{
 }
 
 func TestLine_Level(t *testing.T) {
-	expectedLevels := []uint8{0, 0, 1, 1, 1, 2, 1}
+	expectedLevels := []int8{0, 0, 1, 1, 1, 2, 1}
 	for i, line := range gedcomLines {
 		l := NewLine(&line)
-		if *l.Level() != expectedLevels[i] {
-			t.Errorf("unexpected level at index %d, expected: %d, actual: %d", i, expectedLevels[i], *l.Level())
+		if level, err := l.Level(); err != nil || level != expectedLevels[i] {
+			t.Errorf("unexpected level at index %d, expected: %d, actual: %d", i, expectedLevels[i], level)
 		}
 	}
 }
@@ -29,10 +29,10 @@ func TestLine_XRefID(t *testing.T) {
 	expectedValues := []string{"", "@1@", "", "", "", "", ""}
 	for i, line := range gedcomLines {
 		l := NewLine(&line)
-		if l.XRefID() != nil && *l.XRefID() != expectedValues[i] {
-			t.Errorf("unexpected XRefId at index %d, expected: %s, actual: %s", i, expectedValues[i], *l.XRefID())
-		} else if l.XRefID() == nil && expectedValues[i] != "" {
-			t.Errorf("unexpected XRefId at index %d, expected: %s, actual: nil", i, expectedValues[i])
+		if l.XRefID() != "" && l.XRefID() != expectedValues[i] {
+			t.Errorf("unexpected XRefId at index %d, expected: %s, actual: %s", i, expectedValues[i], l.XRefID())
+		} else if l.XRefID() == "" && expectedValues[i] != "" {
+			t.Errorf("unexpected XRefId at index %d, expected: %s, actual: %s", i, expectedValues[i], l.XRefID())
 		}
 	}
 }
@@ -41,8 +41,8 @@ func TestLine_Tag(t *testing.T) {
 	expectedValues := []string{"HEAD", "INDI", "NAME", "SEX", "BIRT", "DATE", "FAMC"}
 	for i, line := range gedcomLines {
 		l := NewLine(&line)
-		if *l.Tag() != expectedValues[i] {
-			t.Errorf("unexpected tag at index %d, expected: %s, actual: %s", i, expectedValues[i], *l.Tag())
+		if tag, err := l.Tag(); err != nil || tag != expectedValues[i] {
+			t.Errorf("unexpected tag at index %d, expected: %s, actual: %s", i, expectedValues[i], tag)
 		}
 	}
 }
@@ -59,10 +59,10 @@ func TestLine_Value(t *testing.T) {
 	}
 	for i, line := range gedcomLines {
 		l := NewLine(&line)
-		if l.Value() != nil && *l.Value() != expectedValues[i] {
-			t.Errorf("unexpected value at index %d, expected: %s, actual: %s", i, expectedValues[i], *l.Value())
-		} else if l.Value() == nil && expectedValues[i] != "" {
-			t.Errorf("unexpected value at index %d, expected: %s, actual: nil", i, expectedValues[i])
+		if l.Value() != "" && l.Value() != expectedValues[i] {
+			t.Errorf("unexpected value at index %d, expected: %s, actual: %s", i, expectedValues[i], l.Value())
+		} else if l.Value() == "" && expectedValues[i] != "" {
+			t.Errorf("unexpected value at index %d, expected: %s, actual: %s", i, expectedValues[i], l.Value())
 		}
 	}
 }
