@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+// structure used for parsing gedcom lines
+// holds a ref to the original line as well as memos for each part, allowing for lazy parsing
 type Line struct {
 	originalLine *string
 	levelMemo    int8
@@ -59,6 +61,7 @@ func (gedcomLine *Line) Tag() (string, error) {
 	if gedcomLine.tagMemo != "" {
 		return gedcomLine.tagMemo, nil
 	}
+
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
 	var result string
 	var valueToMemo string
@@ -94,6 +97,7 @@ func (gedcomLine *Line) Value() string {
 	if gedcomLine.valueMemo != "" {
 		return gedcomLine.valueMemo
 	}
+
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
 	var result string
 	var tagToMemo string
