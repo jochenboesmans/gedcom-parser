@@ -63,6 +63,10 @@ func Parse(inputFilePath string, outputFilePath string) {
 	fmt.Printf("successfully parsed file at %s to %s. total time taken: %f seconds\n", inputFilePath, outputFilePath, secondsSinceBeginTime)
 }
 
+func trimBOM(line string) string {
+	return strings.TrimPrefix(line, "\uFEFF")
+}
+
 func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 	fileScanner := bufio.NewScanner(inputReader)
 	fileScanner.Split(bufio.ScanLines)
@@ -75,16 +79,21 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 	i := 0
 	for fileScanner.Scan() {
 		line := ""
+		readLine := fileScanner.Text()
 		if i == 0 {
-			line = strings.TrimPrefix(fileScanner.Text(), "\uFEFF")
+			line = trimBOM(readLine)
 		} else {
-			line = fileScanner.Text()
+			line = readLine
 		}
 		gedcomLine := gedcomSpec.NewLine(&line)
 
 		level, err := gedcomLine.Level()
+		if err != nil {
+			continue
+		}
+
 		// interpret record once it's fully read
-		if len(recordLines) > 0 && err == nil && level == 0 {
+		if len(recordLines) > 0 && level == 0 {
 			waitGroup.Add(1)
 			go gedcom.InterpretRecord(recordLines, waitGroup)
 			recordLines = []*gedcomSpec.Line{}
