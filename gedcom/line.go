@@ -17,8 +17,9 @@ type Line struct {
 }
 
 func NewLine(gedcomLinePtr *string) *Line {
+	withoutNewLine := strings.TrimSuffix(*gedcomLinePtr, "\n")
 	return &Line{
-		originalLine: gedcomLinePtr,
+		originalLine: &withoutNewLine,
 		levelMemo:    -1, // use -1 instead of 0 for unset field
 	}
 }
@@ -120,4 +121,38 @@ func (gedcomLine *Line) Value() string {
 	gedcomLine.tagMemo = tagToMemo
 	gedcomLine.valueMemo = result
 	return result
+}
+
+func (gedcomLine *Line) ToString() (string, error) {
+	r := ""
+
+	// level
+	l, err := gedcomLine.Level()
+	if err != nil {
+		return "", err
+	}
+	r += strconv.Itoa(int(l))
+
+	// xRefID
+	x := gedcomLine.XRefID()
+	if x != "" {
+		r += fmt.Sprintf(" %s", x)
+	}
+
+	// tag
+	t, err := gedcomLine.Tag()
+	if err != nil {
+		return "", err
+	}
+	r += fmt.Sprintf(" %s", strings.ToUpper(t))
+
+	// value
+	v := gedcomLine.Value()
+	if v != "" {
+		r += fmt.Sprintf(" %s", v)
+	}
+
+	r += "\n"
+
+	return r, nil
 }
