@@ -41,7 +41,7 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 		}
 		switch tag {
 		case "NAME":
-			g.interpretName(line, recordLines, i, &individualInstance)
+			g.interpretName(recordLines, i, &individualInstance)
 		case "SEX":
 			g.interpretSexLine(line, &individualInstance)
 		case "BIRT":
@@ -97,39 +97,21 @@ func (g *ConcurrencySafeGedcom) interpretIndividualEvent(recordLines []*Line, i 
 	}
 }
 
-func (g *ConcurrencySafeGedcom) interpretName(line *Line, recordLines []*Line, i int, individualInstance *Gedcom_Individual) {
-	name := Gedcom_Individual_Name{}
-	if nameParts := strings.Split(line.Value(), "/"); nameParts[0] != "" || nameParts[1] != "" {
-		name.GivenName = nameParts[0]
-		name.Surname = nameParts[1]
+func (g *ConcurrencySafeGedcom) interpretName(recordLines []*Line, i int, individualInstance *Gedcom_Individual) {
+	name, err := NameStructure(recordLines[i:])
+	if err != nil {
+		return
 	}
-	for _, nameLine := range recordLines[i+1:] {
-		level, err := nameLine.Level()
-		if err != nil {
-			continue
-		}
-		if level < 2 {
-			break // end  of name structure
-		}
 
-		tag, err := nameLine.Tag()
-		if err != nil {
-			continue
-		}
-		switch tag {
-		case "GIVN":
-			name.GivenName = nameLine.Value()
-		case "SURN":
-			name.Surname = nameLine.Value()
-		case "_PRIM":
-			name.Primary = util.PrimaryBoolByValue[strings.ToUpper(nameLine.Value())]
-		}
+	individualName := Gedcom_Individual_Name{
+		GivenName: name.GivenName,
+		Surname:   name.Surname,
+		Primary:   name.Primary,
 	}
 
 	if name.GivenName != "" || name.Surname != "" {
-		individualInstance.Names = append(individualInstance.Names, &name)
+		individualInstance.Names = append(individualInstance.Names, &individualName)
 	}
-
 }
 
 func (g *ConcurrencySafeGedcom) interpretSexLine(line *Line, individualInstance *Gedcom_Individual) {

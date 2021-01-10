@@ -88,8 +88,7 @@ func (gedcomLine *Line) Tag() (string, error) {
 	}
 
 	gedcomLine.tagMemo = result
-	safeValueMemo := strconv.QuoteToASCII(valueToMemo) // encode unicode chars in line values
-	gedcomLine.valueMemo = safeValueMemo
+	gedcomLine.valueMemo = valueToMemo
 	return result, nil
 }
 
@@ -119,7 +118,6 @@ func (gedcomLine *Line) Value() string {
 		}
 	}
 	gedcomLine.tagMemo = tagToMemo
-	safeResult := strconv.QuoteToASCII(result) // encode unicode chars in line values
-	gedcomLine.valueMemo = safeResult
-	return safeResult
+	gedcomLine.valueMemo = result
+	return result
 }
