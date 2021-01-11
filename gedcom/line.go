@@ -30,6 +30,9 @@ func (gedcomLine *Line) Level() (int8, error) {
 		return gedcomLine.level, nil
 	}
 
+	if gedcomLine.originalLine == nil {
+		return 0, fmt.Errorf("failed to parse level from line because of improperly initialized Line struct")
+	}
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 2)
 	level, err := strconv.Atoi(parts[0])
 	if err != nil {
@@ -48,6 +51,9 @@ func (gedcomLine *Line) XRefID() string {
 		return gedcomLine.xRefID
 	}
 
+	if gedcomLine.originalLine == nil {
+		return ""
+	}
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 3)
 	result := ""
 	if len(parts) >= 2 && parts[1][0] == '@' {
@@ -63,6 +69,9 @@ func (gedcomLine *Line) Tag() (string, error) {
 		return gedcomLine.tag, nil
 	}
 
+	if gedcomLine.originalLine == nil {
+		return "", fmt.Errorf("failed to parse tag from line because of improperly initialized Line struct")
+	}
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
 	var result string
 	var valueToMemo string
@@ -98,6 +107,9 @@ func (gedcomLine *Line) Value() string {
 		return gedcomLine.value
 	}
 
+	if gedcomLine.originalLine == nil {
+		return ""
+	}
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
 	var result string
 	var tagToMemo string
