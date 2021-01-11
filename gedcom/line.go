@@ -10,42 +10,42 @@ import (
 // holds a ref to the original line as well as memos for each part, allowing for lazy parsing
 type Line struct {
 	originalLine *string
-	levelMemo    int8
-	xRefIDMemo   string
-	tagMemo      string
-	valueMemo    string
+	level        int8
+	xRefID       string
+	tag          string
+	value        string
 }
 
 func NewLine(gedcomLinePtr *string) *Line {
 	withoutNewLine := strings.TrimSuffix(*gedcomLinePtr, "\n")
 	return &Line{
 		originalLine: &withoutNewLine,
-		levelMemo:    -1, // use -1 instead of 0 for unset field
+		level:        -1, // use -1 instead of 0 for unset field
 	}
 }
 
 // required field, must have a value >= 0 in a valid line
 func (gedcomLine *Line) Level() (int8, error) {
-	if gedcomLine.levelMemo != -1 {
-		return gedcomLine.levelMemo, nil
+	if gedcomLine.level != -1 {
+		return gedcomLine.level, nil
 	}
 
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 2)
 	level, err := strconv.Atoi(parts[0])
 	if err != nil {
-		gedcomLine.levelMemo = -1
+		gedcomLine.level = -1
 		return -1, err
 	}
 
 	result := int8(level)
-	gedcomLine.levelMemo = result
+	gedcomLine.level = result
 	return result, nil
 }
 
 // optional field, can be an empty string in a valid line
 func (gedcomLine *Line) XRefID() string {
-	if gedcomLine.xRefIDMemo != "" {
-		return gedcomLine.xRefIDMemo
+	if gedcomLine.xRefID != "" {
+		return gedcomLine.xRefID
 	}
 
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 3)
@@ -53,14 +53,14 @@ func (gedcomLine *Line) XRefID() string {
 	if len(parts) >= 2 && parts[1][0] == '@' {
 		result = parts[1]
 	}
-	gedcomLine.xRefIDMemo = result
+	gedcomLine.xRefID = result
 	return result
 }
 
 // required field, can't be an empty string in a valid line
 func (gedcomLine *Line) Tag() (string, error) {
-	if gedcomLine.tagMemo != "" {
-		return gedcomLine.tagMemo, nil
+	if gedcomLine.tag != "" {
+		return gedcomLine.tag, nil
 	}
 
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
@@ -88,14 +88,14 @@ func (gedcomLine *Line) Tag() (string, error) {
 		return "", fmt.Errorf("no value for required field 'tag' of gedcom line")
 	}
 
-	gedcomLine.tagMemo = result
-	gedcomLine.valueMemo = valueToMemo
+	gedcomLine.tag = result
+	gedcomLine.value = valueToMemo
 	return result, nil
 }
 
 func (gedcomLine *Line) Value() string {
-	if gedcomLine.valueMemo != "" {
-		return gedcomLine.valueMemo
+	if gedcomLine.value != "" {
+		return gedcomLine.value
 	}
 
 	parts := strings.SplitN(*gedcomLine.originalLine, " ", 4)
@@ -118,8 +118,8 @@ func (gedcomLine *Line) Value() string {
 			result = lastParts
 		}
 	}
-	gedcomLine.tagMemo = tagToMemo
-	gedcomLine.valueMemo = result
+	gedcomLine.tag = tagToMemo
+	gedcomLine.value = result
 	return result
 }
 

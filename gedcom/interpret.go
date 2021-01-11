@@ -72,13 +72,13 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 		}
 		switch tag {
 		case "NAME":
-			g.interpretIndividualName(recordLines[i:], &individualInstance)
+			g.interpretIndividualName(recordLines[1+i:], &individualInstance)
 		case "SEX":
-			g.interpretIndividualSex(recordLines[i:], &individualInstance)
+			g.interpretIndividualSex(recordLines[1+i:], &individualInstance)
 		case "BIRT":
-			g.interpretIndividualEvent(recordLines[i:], &individualInstance, "BIRT")
+			g.interpretIndividualEvent(recordLines[1+i:], &individualInstance, "BIRT")
 		case "DEAT":
-			g.interpretIndividualEvent(recordLines[i:], &individualInstance, "DEAT")
+			g.interpretIndividualEvent(recordLines[1+i:], &individualInstance, "DEAT")
 		}
 	}
 	g.lock()
@@ -90,7 +90,7 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 func (g *ConcurrencySafeGedcom) interpretIndividualSex(recordLines []*Line, individualInstance *Gedcom_Individual) {
 	genderFull, err := interpretSexStructure(recordLines[0])
 	if err != nil {
-		logError(recordLines[0], "sex")
+		logError(recordLines[0], "sex", err)
 		return
 	}
 	individualInstance.Gender = genderFull
@@ -99,7 +99,7 @@ func (g *ConcurrencySafeGedcom) interpretIndividualSex(recordLines []*Line, indi
 func (g *ConcurrencySafeGedcom) interpretIndividualEvent(recordLines []*Line, individualInstance *Gedcom_Individual, kind string) {
 	event, err := interpretEventStructure(recordLines)
 	if err != nil {
-		logError(recordLines[0], "event")
+		logError(recordLines[0], "event", err)
 		return
 	}
 
@@ -115,7 +115,7 @@ func (g *ConcurrencySafeGedcom) interpretIndividualEvent(recordLines []*Line, in
 func (g *ConcurrencySafeGedcom) interpretIndividualName(recordLines []*Line, individualInstance *Gedcom_Individual) {
 	name, err := interpretNameStructure(recordLines)
 	if err != nil || name.IsEmpty() {
-		logError(recordLines[0], "name")
+		logError(recordLines[0], "name", err)
 		return
 	}
 
@@ -159,11 +159,11 @@ func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {
 	g.unlock()
 }
 
-func logError(firstLine *Line, structureKind string) {
-	l, err := firstLine.ToString()
-	if err != nil {
-		log.Printf("failed to interpret %s structure\n", structureKind)
+func logError(firstLine *Line, structureKind string, err error) {
+	l, toStringErr := firstLine.ToString()
+	if toStringErr != nil {
+		log.Printf("failed to interpret %s structure with error: %s\n", structureKind, err)
 	} else {
-		log.Printf("failed to interpret %s structure starting with %s\n", structureKind, l)
+		log.Printf("failed to interpret %s structure starting with %s with error: %s\n", structureKind, l, err)
 	}
 }
