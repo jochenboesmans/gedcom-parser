@@ -2,12 +2,11 @@ package gedcom
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/jochenboesmans/gedcom-parser/util"
 )
 
+// TODO: replace with method in gedcom/serialize.go
 func WritableGedcom(concSafeGedcom *ConcurrencySafeGedcom) *bytes.Buffer {
 	// try to decode non-utf8 fields, keep encoded version if it fails
 	_ = concSafeGedcom.DecodeUnicodeFields()
@@ -111,20 +110,4 @@ func WritableGedcom(concSafeGedcom *ConcurrencySafeGedcom) *bytes.Buffer {
 	buf.WriteString(trailer)
 
 	return buf
-}
-
-func GedcomToJSON(gedcom *ConcurrencySafeGedcom) (*[]byte, error) {
-	gedcomJson, err := json.Marshal(&gedcom.Gedcom)
-	if err != nil {
-		return nil, err
-	}
-	return &gedcomJson, nil
-}
-
-func GedcomToProto(gedcom *ConcurrencySafeGedcom) (*[]byte, error) {
-	gedcomProto, err := proto.Marshal(&gedcom.Gedcom)
-	if err != nil {
-		return nil, err
-	}
-	return &gedcomProto, nil
 }

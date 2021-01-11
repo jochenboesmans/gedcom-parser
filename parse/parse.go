@@ -107,9 +107,9 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 
 	switch filepath.Ext(to) {
 	case ".json":
-		return gedcomSpec.GedcomToJSON(gedcom)
+		return gedcom.ToJSON()
 	case ".protobuf":
-		return gedcomSpec.GedcomToProto(gedcom)
+		return gedcom.ToProto()
 	}
 
 	return nil, fmt.Errorf("failed to match output file extension to: %s", ".json|.protobuf")
