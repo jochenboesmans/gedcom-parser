@@ -1,22 +1,49 @@
 package gedcom
 
 import (
-	"github.com/jochenboesmans/gedcom-parser/util"
-	"strconv"
-	"strings"
+	"log"
 	"sync"
 )
 
+// InterpretRecord concurrently interprets a top-level GEDCOM record
+// and puts the interpreted data in the ConcurrencySafeGedcom
+//
+// Records can be one of:
+//
+// * FAM_RECORD (FAM)
+//
+// * INDIVIDUAL_RECORD (INDI)
+//
+// * MULTIMEDIA_RECORD (OBJE)
+//
+// * NOTE_RECORD (NOTE)
+//
+// * REPOSITORY_RECORD (REPO)
+//
+// * SOURCE_RECORD (SOUR)
+//
+// * SUBMITTER_RECORD (SUBN)
+//
 func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*Line, waitGroup *sync.WaitGroup) {
 	tag, err := recordLines[0].Tag()
 	if err != nil {
 		return
 	}
 	switch tag {
-	case "INDI":
-		g.interpretIndividualRecord(recordLines)
 	case "FAM":
 		g.interpretFamilyRecord(recordLines)
+	case "INDI":
+		g.interpretIndividualRecord(recordLines)
+	case "OBJE":
+		// TODO
+	case "NOTE":
+		// TODO
+	case "REPO":
+		// TODO
+	case "SOUR":
+		// TODO
+	case "SUBN":
+		// TODO
 	}
 	waitGroup.Done()
 }
@@ -26,12 +53,16 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 	individualInstance := Gedcom_Individual{
 		Id: individualXRefID,
 	}
+	rootLevel, err := recordLines[0].Level()
+	if err != nil {
+		return
+	}
 	for i, line := range recordLines[1:] {
 		level, err := line.Level()
 		if err != nil {
 			continue
 		}
-		if level < 1 {
+		if level <= rootLevel {
 			break // end of record
 		}
 
@@ -41,13 +72,13 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 		}
 		switch tag {
 		case "NAME":
-			g.interpretName(recordLines, i, &individualInstance)
+			g.interpretIndividualName(recordLines[i:], &individualInstance)
 		case "SEX":
-			g.interpretSexLine(line, &individualInstance)
+			g.interpretIndividualSex(recordLines[i:], &individualInstance)
 		case "BIRT":
-			g.interpretIndividualEvent(recordLines, i, &individualInstance, "BIRT")
+			g.interpretIndividualEvent(recordLines[i:], &individualInstance, "BIRT")
 		case "DEAT":
-			g.interpretIndividualEvent(recordLines, i, &individualInstance, "DEAT")
+			g.interpretIndividualEvent(recordLines[i:], &individualInstance, "DEAT")
 		}
 	}
 	g.lock()
@@ -56,100 +87,57 @@ func (g *ConcurrencySafeGedcom) interpretIndividualRecord(recordLines []*Line) {
 
 }
 
-func (g *ConcurrencySafeGedcom) interpretIndividualEvent(recordLines []*Line, i int, individualInstance *Gedcom_Individual, kind string) {
-	e := Gedcom_Individual_Event{
-		Date:    nil,
-		Place:   "",
-		Primary: false,
+func (g *ConcurrencySafeGedcom) interpretIndividualSex(recordLines []*Line, individualInstance *Gedcom_Individual) {
+	genderFull, err := interpretSexStructure(recordLines[0])
+	if err != nil {
+		logError(recordLines[0], "sex")
+		return
 	}
-	for _, eventLine := range recordLines[i+1:] {
-		level, err := eventLine.Level()
-		if err != nil {
-			continue
-		}
-		if level < 2 {
-			break // end of event structure
-		}
-
-		tag, err := eventLine.Tag()
-		if err != nil {
-			continue
-		}
-		if tag == "DATE" {
-			birthDate := parseDate(eventLine)
-			e.Date = birthDate
-		}
-		if tag == "PLAC" {
-			e.Place = eventLine.Value()
-		}
-		if tag == "_PRIM" {
-			if primaryBool, ok := util.PrimaryBoolByValue[eventLine.Value()]; ok {
-				e.Primary = primaryBool
-			}
-		}
-	}
-
-	switch kind {
-	case "BIRT":
-		individualInstance.BirthEvents = append(individualInstance.BirthEvents, &e)
-	case "DEAT":
-		individualInstance.DeathEvents = append(individualInstance.DeathEvents, &e)
-	}
+	individualInstance.Gender = genderFull
 }
 
-func (g *ConcurrencySafeGedcom) interpretName(recordLines []*Line, i int, individualInstance *Gedcom_Individual) {
-	name, err := NameStructure(recordLines[i:])
+func (g *ConcurrencySafeGedcom) interpretIndividualEvent(recordLines []*Line, individualInstance *Gedcom_Individual, kind string) {
+	event, err := interpretEventStructure(recordLines)
 	if err != nil {
+		logError(recordLines[0], "event")
 		return
 	}
 
-	individualName := Gedcom_Individual_Name{
-		GivenName: name.GivenName,
-		Surname:   name.Surname,
-		Primary:   name.Primary,
-	}
-
-	if name.GivenName != "" || name.Surname != "" {
-		individualInstance.Names = append(individualInstance.Names, &individualName)
+	gedcomIndividualEvent := event.toGedcomIndividualEvent()
+	switch kind {
+	case "BIRT":
+		individualInstance.BirthEvents = append(individualInstance.BirthEvents, &gedcomIndividualEvent)
+	case "DEAT":
+		individualInstance.DeathEvents = append(individualInstance.DeathEvents, &gedcomIndividualEvent)
 	}
 }
 
-func (g *ConcurrencySafeGedcom) interpretSexLine(line *Line, individualInstance *Gedcom_Individual) {
-	if genderFull, ok := util.GenderFullByLetter[line.Value()]; ok {
-		individualInstance.Gender = genderFull
+func (g *ConcurrencySafeGedcom) interpretIndividualName(recordLines []*Line, individualInstance *Gedcom_Individual) {
+	name, err := interpretNameStructure(recordLines)
+	if err != nil || name.IsEmpty() {
+		logError(recordLines[0], "name")
+		return
 	}
-}
 
-func parseDate(line *Line) *Gedcom_Individual_Date {
-	dateParts := strings.SplitN(line.Value(), " ", 3)
-	date := &Gedcom_Individual_Date{}
-	if len(dateParts) > 0 {
-		if year, err := strconv.Atoi(dateParts[0]); err == nil {
-			date.Year = uint32(year)
-		}
-	}
-	if len(dateParts) > 1 {
-		if month, ok := util.MonthIntByAbbr[strings.ToUpper(dateParts[1])]; ok {
-			date.Month = uint32(month)
-		}
-	}
-	if len(dateParts) > 2 {
-		if day, err := strconv.Atoi(dateParts[2]); err == nil {
-			date.Day = uint32(day)
-		}
-	}
-	return date
+	gedcomIndividualName := name.toGedcomIndividualName()
+	individualInstance.Names = append(individualInstance.Names, &gedcomIndividualName)
 }
 
 func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {
 	familyId := recordLines[0].XRefID()
-	familyInstance := Gedcom_Family{Id: familyId}
+	familyInstance := Gedcom_Family{
+		Id: familyId,
+	}
+	rootLevel, err := recordLines[0].Level()
+	if err != nil {
+		return
+	}
 	for _, line := range recordLines {
 		level, err := line.Level()
 		if err != nil {
 			continue
 		}
-		if level < 1 {
+		if level <= rootLevel {
 			break // end of record
 		}
 
@@ -169,4 +157,13 @@ func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {
 	g.lock()
 	g.Gedcom.Families = append(g.Gedcom.Families, &familyInstance)
 	g.unlock()
+}
+
+func logError(firstLine *Line, structureKind string) {
+	l, err := firstLine.ToString()
+	if err != nil {
+		log.Printf("failed to interpret %s structure\n", structureKind)
+	} else {
+		log.Printf("failed to interpret %s structure starting with %s\n", structureKind, l)
+	}
 }

@@ -94,7 +94,7 @@ var testNames = [][]*Line{
 
 func TestNameStructure(t *testing.T) {
 	for i := range testNames {
-		result, err := NameStructure(testNames[i])
+		result, err := interpretNameStructure(testNames[i])
 		if err != nil {
 			t.Errorf("failed to interpret %s as name structure with error: %s", lines[i], err)
 		}

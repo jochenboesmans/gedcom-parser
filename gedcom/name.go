@@ -1,7 +1,7 @@
 package gedcom
 
 import (
-	"errors"
+	"fmt"
 	"github.com/jochenboesmans/gedcom-parser/util"
 	"strings"
 )
@@ -12,10 +12,10 @@ type Name struct {
 	Primary   bool
 }
 
-func NameStructure(nameLines []*Line) (*Name, error) {
+func interpretNameStructure(nameLines []*Line) (*Name, error) {
 	rootLevel, err := nameLines[0].Level()
 	if err != nil {
-		return nil, errors.New("failed to parse root level of name structure")
+		return nil, fmt.Errorf("failed to parse root level of name structure: %s", err)
 	}
 
 	name := Name{}
@@ -48,4 +48,16 @@ func NameStructure(nameLines []*Line) (*Name, error) {
 		}
 	}
 	return &name, nil
+}
+
+func (name *Name) IsEmpty() bool {
+	return name.GivenName == "" && name.Surname == ""
+}
+
+func (name *Name) toGedcomIndividualName() Gedcom_Individual_Name {
+	return Gedcom_Individual_Name{
+		GivenName: name.GivenName,
+		Surname:   name.Surname,
+		Primary:   name.Primary,
+	}
 }
