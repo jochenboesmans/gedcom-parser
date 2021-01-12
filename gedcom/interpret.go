@@ -132,7 +132,7 @@ func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {
 	if err != nil {
 		return
 	}
-	for _, line := range recordLines {
+	for _, line := range recordLines[1:] {
 		level, err := line.Level()
 		if err != nil {
 			continue
