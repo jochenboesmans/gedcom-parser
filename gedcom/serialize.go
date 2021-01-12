@@ -35,74 +35,62 @@ func writeLine(line *Line, buf *bytes.Buffer, lineCounter *int) error {
 	return nil
 }
 
+func createAndWriteLine(level int, xRefID string, tag string, value string, lineCounter *int, buf *bytes.Buffer) error {
+	line := &Line{
+		level:  int8(level),
+		tag:    tag,
+		xRefID: xRefID,
+		value:  value,
+	}
+	err := writeLine(line, buf, lineCounter)
+	return err
+}
+
 func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 	gedcom := g.Gedcom
 	buf := bytes.NewBuffer([]byte{})
 	lineCounter := 0
-
 	rootLevel := 0
-	headerLine := &Line{
-		level: int8(rootLevel),
-		tag:   "HEAD",
-	}
-	err := writeLine(headerLine, buf, &lineCounter)
+
+	err := createAndWriteLine(rootLevel, "", "HEAD", "", &lineCounter, buf)
 	if err != nil {
+		// completely fail write if header write fails
 		return nil, err
 	}
 
 	for _, i := range gedcom.Individuals {
-		firstLine := &Line{
-			level:  int8(rootLevel),
-			xRefID: i.Id,
-			tag:    "INDI",
-		}
-		err := writeLine(firstLine, buf, &lineCounter)
+		indiLevel := rootLevel
+		err := createAndWriteLine(indiLevel, i.Id, "INDI", "", &lineCounter, buf)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
 		for _, n := range i.Names {
-			nameLevel := rootLevel + 1
-			nameLine := &Line{
-				level: int8(nameLevel),
-				tag:   "NAME",
-			}
-			err := writeLine(nameLine, buf, &lineCounter)
+			nameLevel := indiLevel + 1
+			err := createAndWriteLine(nameLevel, "", "NAME", "", &lineCounter, buf)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
 
 			if n.GivenName != "" {
-				givenNameLine := &Line{
-					level: int8(nameLevel + 1),
-					tag:   "GIVN",
-					value: n.GivenName,
-				}
-				err := writeLine(givenNameLine, buf, &lineCounter)
+				givenNameLevel := nameLevel + 1
+				err := createAndWriteLine(givenNameLevel, "", "GIVN", n.GivenName, &lineCounter, buf)
 				if err != nil {
 					log.Println(err)
 				}
 			}
 			if n.Surname != "" {
-				surnameLine := &Line{
-					level: int8(nameLevel + 1),
-					tag:   "SURN",
-					value: n.Surname,
-				}
-				err := writeLine(surnameLine, buf, &lineCounter)
+				surnameLevel := nameLevel + 1
+				err := createAndWriteLine(surnameLevel, "", "SURN", n.Surname, &lineCounter, buf)
 				if err != nil {
 					log.Println(err)
 				}
 			}
 			if primValue, ok := util.PrimaryValueByBool[n.Primary]; ok {
-				primLine := &Line{
-					level: int8(nameLevel + 1),
-					tag:   "_PRIM",
-					value: primValue,
-				}
-				err := writeLine(primLine, buf, &lineCounter)
+				primLevel := nameLevel + 1
+				err := createAndWriteLine(primLevel, "", "_PRIM", primValue, &lineCounter, buf)
 				if err != nil {
 					log.Println(err)
 				}
@@ -110,84 +98,106 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 		}
 
 		for _, b := range i.BirthEvents {
-			firstLine := fmt.Sprintf("1 BIRT\n")
-			buf.WriteString(firstLine)
-
-			var secondLine string
-			if b.Date.Year != "" && b.Date.Month != "" && b.Date.Day != "" {
-				secondLine = fmt.Sprintf("2 DATE %s %s %s\n", b.Date.Day, util.MonthAbbrByInt[b.Date.Month], b.Date.Year)
-			} else if b.Date.Year != "" && b.Date.Month != "" {
-				secondLine = fmt.Sprintf("2 DATE %s %s\n", util.MonthAbbrByInt[b.Date.Month], b.Date.Year)
-			} else if b.Date.Year != "" {
-				secondLine = fmt.Sprintf("2 DATE %s\n", b.Date.Year)
+			eventLevel := indiLevel + 1
+			err := createAndWriteLine(eventLevel, "", "BIRT", "", &lineCounter, buf)
+			if err != nil {
+				log.Println(err)
+				continue
 			}
-			if secondLine != "" {
-				buf.WriteString(firstLine)
-			}
-
-			if b.Place != "" {
-				placeLine := fmt.Sprintf("2 PLAC %s\n", b.Place)
-				buf.WriteString(placeLine)
-			}
-
-			primaryLine := fmt.Sprintf("2 _PRIM %s\n", util.PrimaryValueByBool[b.Primary])
-			buf.WriteString(primaryLine)
+			createAndWriteDeepEventLines(b, eventLevel, &lineCounter, buf)
 		}
 
 		for _, d := range i.DeathEvents {
-			firstLine := fmt.Sprintf("1 DEAT\n")
-			buf.WriteString(firstLine)
-
-			var secondLine string
-			if d.Date.Year != "" && d.Date.Month != "" && d.Date.Day != "" {
-				secondLine = fmt.Sprintf("2 DATE %s %s %s\n", d.Date.Day, util.MonthAbbrByInt[d.Date.Month], d.Date.Year)
-			} else if d.Date.Year != "" && d.Date.Month != "" {
-				secondLine = fmt.Sprintf("2 DATE %s %s\n", util.MonthAbbrByInt[d.Date.Month], d.Date.Year)
-			} else if d.Date.Year != "" {
-				secondLine = fmt.Sprintf("2 DATE %s\n", d.Date.Year)
+			eventLevel := indiLevel + 1
+			err := createAndWriteLine(eventLevel, "", "DEAT", "", &lineCounter, buf)
+			if err != nil {
+				log.Println(err)
+				continue
 			}
-			if secondLine != "" {
-				buf.WriteString(firstLine)
-			}
-
-			if d.Place != "" {
-				placeLine := fmt.Sprintf("2 PLAC %s\n", d.Place)
-				buf.WriteString(placeLine)
-			}
-
-			if primaryValue, hit := util.PrimaryValueByBool[d.Primary]; hit {
-				primaryLine := fmt.Sprintf("2 _PRIM %s\n", primaryValue)
-				buf.WriteString(primaryLine)
-			}
+			createAndWriteDeepEventLines(d, eventLevel, &lineCounter, buf)
 		}
 
 		if genderLetter, hit := util.GenderLetterByFull[i.Gender]; hit {
-			genderLine := fmt.Sprintf("1 SEX %s\n", genderLetter)
-			buf.WriteString(genderLine)
+			genderLevel := indiLevel + 1
+			err := createAndWriteLine(genderLevel, "", "SEX", genderLetter, &lineCounter, buf)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 
 	for _, f := range gedcom.Families {
-		firstLine := fmt.Sprintf("0 %s FAM\n", f.Id)
-		buf.WriteString(firstLine)
+		familyLevel := rootLevel
+		err := createAndWriteLine(familyLevel, f.Id, "FAM", "", &lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
 
 		if f.FatherId != "" {
-			fatherLine := fmt.Sprintf("1 HUSB %s\n", f.FatherId)
-			buf.WriteString(fatherLine)
+			fatherLevel := familyLevel + 1
+			err := createAndWriteLine(fatherLevel, "", "HUSB", f.FatherId, &lineCounter, buf)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 		if f.MotherId != "" {
-			motherLine := fmt.Sprintf("1 WIFE %s\n", f.MotherId)
-			buf.WriteString(motherLine)
+			motherLevel := familyLevel + 1
+			err := createAndWriteLine(motherLevel, "", "WIFE", f.MotherId, &lineCounter, buf)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 
 		for _, childId := range f.ChildIds {
-			childLine := fmt.Sprintf("1 CHIL %s\n", childId)
-			buf.WriteString(childLine)
+			childLevel := familyLevel + 1
+			err := createAndWriteLine(childLevel, "", "CHIL", childId, &lineCounter, buf)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 		}
 	}
 
-	trailer := "0 TRLR\n"
-	buf.WriteString(trailer)
+	err = createAndWriteLine(rootLevel, "", "TRLR", "", &lineCounter, buf)
+	if err != nil {
+		log.Println(err)
+	}
 
 	return buf, nil
+}
+
+func createAndWriteDeepEventLines(event *Gedcom_Individual_Event, eventLevel int, lineCounter *int, buf *bytes.Buffer) {
+	var dateValue string
+	if event.Date.Year != "" && event.Date.Month != "" && event.Date.Day != "" {
+		dateValue = fmt.Sprintf("%s %s %s", event.Date.Day, util.MonthAbbrByInt[event.Date.Month], event.Date.Year)
+	} else if event.Date.Year != "" && event.Date.Month != "" {
+		dateValue = fmt.Sprintf("%s %s", util.MonthAbbrByInt[event.Date.Month], event.Date.Year)
+	} else if event.Date.Year != "" {
+		dateValue = fmt.Sprintf("%s", event.Date.Year)
+	}
+	if dateValue != "" {
+		dateLevel := eventLevel + 1
+		err := createAndWriteLine(dateLevel, "", "DATE", dateValue, lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+
+	if event.Place != "" {
+		placeLevel := eventLevel + 1
+		err := createAndWriteLine(placeLevel, "", "PLAC", event.Place, lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+
+	if primValue, ok := util.PrimaryValueByBool[event.Primary]; ok {
+		primLevel := eventLevel + 1
+		err := createAndWriteLine(primLevel, "", "_PRIM", primValue, lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+
 }
