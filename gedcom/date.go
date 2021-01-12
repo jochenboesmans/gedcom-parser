@@ -2,33 +2,28 @@ package gedcom
 
 import (
 	"github.com/jochenboesmans/gedcom-parser/util"
-	"strconv"
 	"strings"
 )
 
 type Date struct {
-	Year  uint32
-	Month uint32
-	Day   uint32
+	Year  string
+	Month string
+	Day   string
 }
 
 func interpretDateStructure(line *Line) Date {
 	dateParts := strings.SplitN(line.Value(), " ", 3)
 	date := Date{}
 	if len(dateParts) > 0 {
-		if year, err := strconv.Atoi(dateParts[0]); err == nil {
-			date.Year = uint32(year)
-		}
+		date.Year = dateParts[len(dateParts)-1]
 	}
 	if len(dateParts) > 1 {
-		if month, ok := util.MonthIntByAbbr[strings.ToUpper(dateParts[1])]; ok {
-			date.Month = uint32(month)
+		if month, ok := util.MonthIntByAbbr[strings.ToUpper(dateParts[len(dateParts)-2])]; ok {
+			date.Month = month
 		}
 	}
 	if len(dateParts) > 2 {
-		if day, err := strconv.Atoi(dateParts[2]); err == nil {
-			date.Day = uint32(day)
-		}
+		date.Day = dateParts[len(dateParts)-3]
 	}
 	return date
 }

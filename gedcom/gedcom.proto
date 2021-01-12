@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package gedcom;
+option go_package = "github.com/jochenboesmans/gedcom-parser/gedcom";
 
 message Gedcom {
     repeated Individual Individuals = 1;
@@ -24,9 +25,9 @@ message Gedcom {
             bool Primary = 3;
         }
         message Date {
-            uint32 Year = 1;
-            uint32 Month = 2;
-            uint32 Day = 3;
+            string Year = 1;
+            string Month = 2;
+            string Day = 3;
         }
     }
     message Family {

@@ -114,12 +114,12 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 			buf.WriteString(firstLine)
 
 			var secondLine string
-			if b.Date.Year != 0 && b.Date.Month != 0 && b.Date.Day != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", b.Date.Day, util.MonthAbbrByInt[int(b.Date.Month)], b.Date.Year)
-			} else if b.Date.Year != 0 && b.Date.Month != 0 {
-				secondLine = fmt.Sprintf("2 DATE %s %d\n", util.MonthAbbrByInt[int(b.Date.Month)], b.Date.Year)
-			} else if b.Date.Year != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d\n", b.Date.Year)
+			if b.Date.Year != "" && b.Date.Month != "" && b.Date.Day != "" {
+				secondLine = fmt.Sprintf("2 DATE %s %s %s\n", b.Date.Day, util.MonthAbbrByInt[b.Date.Month], b.Date.Year)
+			} else if b.Date.Year != "" && b.Date.Month != "" {
+				secondLine = fmt.Sprintf("2 DATE %s %s\n", util.MonthAbbrByInt[b.Date.Month], b.Date.Year)
+			} else if b.Date.Year != "" {
+				secondLine = fmt.Sprintf("2 DATE %s\n", b.Date.Year)
 			}
 			if secondLine != "" {
 				buf.WriteString(firstLine)
@@ -139,12 +139,12 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 			buf.WriteString(firstLine)
 
 			var secondLine string
-			if d.Date.Year != 0 && d.Date.Month != 0 && d.Date.Day != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d %s %d\n", d.Date.Day, util.MonthAbbrByInt[int(d.Date.Month)], d.Date.Year)
-			} else if d.Date.Year != 0 && d.Date.Month != 0 {
-				secondLine = fmt.Sprintf("2 DATE %s %d\n", util.MonthAbbrByInt[int(d.Date.Month)], d.Date.Year)
-			} else if d.Date.Year != 0 {
-				secondLine = fmt.Sprintf("2 DATE %d\n", d.Date.Year)
+			if d.Date.Year != "" && d.Date.Month != "" && d.Date.Day != "" {
+				secondLine = fmt.Sprintf("2 DATE %s %s %s\n", d.Date.Day, util.MonthAbbrByInt[d.Date.Month], d.Date.Year)
+			} else if d.Date.Year != "" && d.Date.Month != "" {
+				secondLine = fmt.Sprintf("2 DATE %s %s\n", util.MonthAbbrByInt[d.Date.Month], d.Date.Year)
+			} else if d.Date.Year != "" {
+				secondLine = fmt.Sprintf("2 DATE %s\n", d.Date.Year)
 			}
 			if secondLine != "" {
 				buf.WriteString(firstLine)

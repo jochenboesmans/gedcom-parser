@@ -1,21 +1,21 @@
 package util
 
-var MonthAbbrByInt = map[int]string{
-	1:  "JAN",
-	2:  "FEB",
-	3:  "MAR",
-	4:  "APR",
-	5:  "MAY",
-	6:  "JUN",
-	7:  "JUL",
-	8:  "AUG",
-	9:  "SEP",
-	10: "OCT",
-	11: "NOV",
-	12: "DEC",
+var MonthAbbrByInt = map[string]string{
+	"01": "JAN",
+	"02": "FEB",
+	"03": "MAR",
+	"04": "APR",
+	"05": "MAY",
+	"06": "JUN",
+	"07": "JUL",
+	"08": "AUG",
+	"09": "SEP",
+	"10": "OCT",
+	"11": "NOV",
+	"12": "DEC",
 }
 
-var MonthIntByAbbr = invertIntStringMap(MonthAbbrByInt)
+var MonthIntByAbbr = invertStringStringMap(MonthAbbrByInt)
 
 var PrimaryValueByBool = map[bool]string{
 	true:  "Y",
@@ -31,13 +31,6 @@ var GenderLetterByFull = map[string]string{
 
 var GenderFullByLetter = invertStringStringMap(GenderLetterByFull)
 
-func invertIntStringMap(m map[int]string) map[string]int {
-	r := map[string]int{}
-	for k, v := range m {
-		r[v] = k
-	}
-	return r
-}
 func invertBoolStringMap(m map[bool]string) map[string]bool {
 	r := map[string]bool{}
 	for k, v := range m {
