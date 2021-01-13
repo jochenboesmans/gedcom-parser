@@ -2,12 +2,10 @@ name: Go
 
 on:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    tags:
+      - 'v*'
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -24,18 +22,58 @@ jobs:
     - name: Test
       run: go test -v ./...
     
-    - name: Install 7zip
-      run: sudo apt-get install p7zip-full
-      
     - name: Cross-compile
       run: bash ./crosscompile.sh
   
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v2.2.2
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-    # Artifact name
-        name: binaries
-    # A file, directory or wildcard pattern that describes what to upload
-        path: gedcom-parser.*.7z
-        retention-days: 90
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+    
+    - name: Upload Release Asset 1
+      id: upload-release-asset1
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: gedcom-parser.darwin.amd64.7z
+        asset_name: gedcom-parser.darwin.amd64.7z
+        asset_content_type: application/x-7z-compressed
+    - name: Upload Release Asset 2
+      id: upload-release-asset2
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: gedcom-parser.darwin.arm64.7z
+        asset_name: gedcom-parser.darwin.arm64.7z
+        asset_content_type: application/x-7z-compressed
+    - name: Upload Release Asset 3
+      id: upload-release-asset3
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: gedcom-parser.linux.amd64.7z
+        asset_name: gedcom-parser.linux.amd64.7z
+        asset_content_type: application/x-7z-compressed
+    - name: Upload Release Asset 4
+      id: upload-release-asset4
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: gedcom-parser.windows.amd64.7z
+        asset_name: gedcom-parser.windows.amd64.7z
+        asset_content_type: application/x-7z-compressed
 
