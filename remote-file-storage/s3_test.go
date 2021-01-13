@@ -1,3 +1,5 @@
+//+build s3
+
 package remote_file_storage
 
 import (
