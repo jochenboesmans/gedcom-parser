@@ -24,7 +24,8 @@ jobs:
     
     - name: Cross-compile
       run: bash ./crosscompile.sh
-  
+
+    # Create GitHub release with binaries for different architectures
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -35,7 +36,6 @@ jobs:
         release_name: Release ${{ github.ref }}
         draft: false
         prerelease: false
-    
     - name: Upload Release Asset 1
       id: upload-release-asset1
       uses: actions/upload-release-asset@v1
@@ -72,8 +72,27 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
         asset_path: gedcom-parser.windows.amd64.7z
         asset_name: gedcom-parser.windows.amd64.7z
         asset_content_type: application/x-7z-compressed
 
+    # Publish Docker image to GitHub
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Build and push
+      id: docker_build
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: ${{ github.ref }}
+        context: .
+        file: ./runner.Dockerfile
+        platforms: linux/amd64,linux/arm64
