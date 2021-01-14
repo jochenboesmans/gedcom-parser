@@ -1,5 +1,3 @@
-LABEL org.opencontainers.image.source=https://github.com/jochenboesmans/gedcom-parser
-
 FROM golang:1.15 AS getter
 RUN go get -d github.com/jochenboesmans/gedcom-parser
 RUN GOARCH=amd64 GOOS=linux go build github.com/jochenboesmans/gedcom-parser
