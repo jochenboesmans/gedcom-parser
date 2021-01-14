@@ -72,8 +72,10 @@ jobs:
     - name: Determine variables for docker image
       id: determine-docker-image-vars
       run: |
+        REF=${{ github.ref }}
+        TAGS=${REF##*/} # Get version from github's ref (refs/tags/VERSION)
         GHCR_IMAGE=ghcr.io/${{ github.repository_owner }}/gedcom-parser
-        GHCR_TAGS=${GHCR_IMAGE}:${{ github.ref }}
+        GHCR_TAGS=${GHCR_IMAGE}:${TAGS}
         GHCR_LATEST=${GHCR_IMAGE}:latest
         echo ::set-output name=ghcr_tags::${GHCR_TAGS}
         echo ::set-output name=ghcr_latest::${GHCR_LATEST}
