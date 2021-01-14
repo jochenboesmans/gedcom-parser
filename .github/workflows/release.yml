@@ -69,6 +69,14 @@ jobs:
         asset_content_type: application/x-7z-compressed
 
     # Publish Docker image to GitHub
+    - name: Determine variables for docker image
+      id: determine-docker-image-vars
+      run: |
+        GHCR_IMAGE=ghcr.io/${{ github.repository_owner }}/gedcom-parser
+        GHCR_TAGS=${GHCR_IMAGE}:${{ github.ref }}
+        GHCR_LATEST=${GHCR_IMAGE}:latest
+        echo ::set-output name=ghcr_tags::${GHCR_TAGS}
+        echo ::set-output name=ghcr_latest::${GHCR_LATEST}
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
@@ -84,7 +92,9 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         push: true
-        tags: ghcr.io/jochenboesmans/gedcom-parser:latest
+        tags: |
+          ${{ steps.determine-docker-image-vars.outputs.ghcr_tags }}
+          ${{ steps.determine-docker-image-vars.outputs.ghcr_latest }}
         context: .
         file: ./runner.Dockerfile
         platforms: linux/amd64,linux/arm64
