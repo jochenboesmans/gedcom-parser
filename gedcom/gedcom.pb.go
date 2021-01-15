@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.23.0-devel
 // 	protoc        v3.11.3
-// source: gedcom.proto
+// source: gedcom/gedcom.proto
 
 package gedcom
 
@@ -30,14 +30,15 @@ type Gedcom struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Individuals []*Gedcom_Individual `protobuf:"bytes,1,rep,name=Individuals,proto3" json:"Individuals,omitempty"`
-	Families    []*Gedcom_Family     `protobuf:"bytes,2,rep,name=Families,proto3" json:"Families,omitempty"`
+	Header      *Gedcom_HeaderType   `protobuf:"bytes,1,opt,name=Header,proto3" json:"Header,omitempty"`
+	Individuals []*Gedcom_Individual `protobuf:"bytes,2,rep,name=Individuals,proto3" json:"Individuals,omitempty"`
+	Families    []*Gedcom_Family     `protobuf:"bytes,3,rep,name=Families,proto3" json:"Families,omitempty"`
 }
 
 func (x *Gedcom) Reset() {
 	*x = Gedcom{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gedcom_proto_msgTypes[0]
+		mi := &file_gedcom_gedcom_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -50,7 +51,7 @@ func (x *Gedcom) String() string {
 func (*Gedcom) ProtoMessage() {}
 
 func (x *Gedcom) ProtoReflect() protoreflect.Message {
-	mi := &file_gedcom_proto_msgTypes[0]
+	mi := &file_gedcom_gedcom_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -63,7 +64,14 @@ func (x *Gedcom) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gedcom.ProtoReflect.Descriptor instead.
 func (*Gedcom) Descriptor() ([]byte, []int) {
-	return file_gedcom_proto_rawDescGZIP(), []int{0}
+	return file_gedcom_gedcom_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Gedcom) GetHeader() *Gedcom_HeaderType {
+	if x != nil {
+		return x.Header
+	}
+	return nil
 }
 
 func (x *Gedcom) GetIndividuals() []*Gedcom_Individual {
@@ -78,6 +86,53 @@ func (x *Gedcom) GetFamilies() []*Gedcom_Family {
 		return x.Families
 	}
 	return nil
+}
+
+type Gedcom_HeaderType struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Source string `protobuf:"bytes,1,opt,name=Source,proto3" json:"Source,omitempty"`
+}
+
+func (x *Gedcom_HeaderType) Reset() {
+	*x = Gedcom_HeaderType{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_gedcom_gedcom_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Gedcom_HeaderType) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Gedcom_HeaderType) ProtoMessage() {}
+
+func (x *Gedcom_HeaderType) ProtoReflect() protoreflect.Message {
+	mi := &file_gedcom_gedcom_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Gedcom_HeaderType.ProtoReflect.Descriptor instead.
+func (*Gedcom_HeaderType) Descriptor() ([]byte, []int) {
+	return file_gedcom_gedcom_proto_rawDescGZIP(), []int{0, 0}
+}
+
+func (x *Gedcom_HeaderType) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
 }
 
 type Gedcom_Individual struct {
@@ -95,7 +150,7 @@ type Gedcom_Individual struct {
 func (x *Gedcom_Individual) Reset() {
 	*x = Gedcom_Individual{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gedcom_proto_msgTypes[1]
+		mi := &file_gedcom_gedcom_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -108,7 +163,7 @@ func (x *Gedcom_Individual) String() string {
 func (*Gedcom_Individual) ProtoMessage() {}
 
 func (x *Gedcom_Individual) ProtoReflect() protoreflect.Message {
-	mi := &file_gedcom_proto_msgTypes[1]
+	mi := &file_gedcom_gedcom_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -121,7 +176,7 @@ func (x *Gedcom_Individual) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gedcom_Individual.ProtoReflect.Descriptor instead.
 func (*Gedcom_Individual) Descriptor() ([]byte, []int) {
-	return file_gedcom_proto_rawDescGZIP(), []int{0, 0}
+	return file_gedcom_gedcom_proto_rawDescGZIP(), []int{0, 1}
 }
 
 func (x *Gedcom_Individual) GetId() string {
@@ -173,7 +228,7 @@ type Gedcom_Family struct {
 func (x *Gedcom_Family) Reset() {
 	*x = Gedcom_Family{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gedcom_proto_msgTypes[2]
+		mi := &file_gedcom_gedcom_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -186,7 +241,7 @@ func (x *Gedcom_Family) String() string {
 func (*Gedcom_Family) ProtoMessage() {}
 
 func (x *Gedcom_Family) ProtoReflect() protoreflect.Message {
-	mi := &file_gedcom_proto_msgTypes[2]
+	mi := &file_gedcom_gedcom_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -199,7 +254,7 @@ func (x *Gedcom_Family) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gedcom_Family.ProtoReflect.Descriptor instead.
 func (*Gedcom_Family) Descriptor() ([]byte, []int) {
-	return file_gedcom_proto_rawDescGZIP(), []int{0, 1}
+	return file_gedcom_gedcom_proto_rawDescGZIP(), []int{0, 2}
 }
 
 func (x *Gedcom_Family) GetId() string {
@@ -243,7 +298,7 @@ type Gedcom_Individual_Event struct {
 func (x *Gedcom_Individual_Event) Reset() {
 	*x = Gedcom_Individual_Event{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gedcom_proto_msgTypes[3]
+		mi := &file_gedcom_gedcom_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -256,7 +311,7 @@ func (x *Gedcom_Individual_Event) String() string {
 func (*Gedcom_Individual_Event) ProtoMessage() {}
 
 func (x *Gedcom_Individual_Event) ProtoReflect() protoreflect.Message {
-	mi := &file_gedcom_proto_msgTypes[3]
+	mi := &file_gedcom_gedcom_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -269,7 +324,7 @@ func (x *Gedcom_Individual_Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gedcom_Individual_Event.ProtoReflect.Descriptor instead.
 func (*Gedcom_Individual_Event) Descriptor() ([]byte, []int) {
-	return file_gedcom_proto_rawDescGZIP(), []int{0, 0, 0}
+	return file_gedcom_gedcom_proto_rawDescGZIP(), []int{0, 1, 0}
 }
 
 func (x *Gedcom_Individual_Event) GetDate() *Gedcom_Individual_Date {
@@ -306,7 +361,7 @@ type Gedcom_Individual_Name struct {
 func (x *Gedcom_Individual_Name) Reset() {
 	*x = Gedcom_Individual_Name{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gedcom_proto_msgTypes[4]
+		mi := &file_gedcom_gedcom_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -319,7 +374,7 @@ func (x *Gedcom_Individual_Name) String() string {
 func (*Gedcom_Individual_Name) ProtoMessage() {}
 
 func (x *Gedcom_Individual_Name) ProtoReflect() protoreflect.Message {
-	mi := &file_gedcom_proto_msgTypes[4]
+	mi := &file_gedcom_gedcom_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +387,7 @@ func (x *Gedcom_Individual_Name) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gedcom_Individual_Name.ProtoReflect.Descriptor instead.
 func (*Gedcom_Individual_Name) Descriptor() ([]byte, []int) {
-	return file_gedcom_proto_rawDescGZIP(), []int{0, 0, 1}
+	return file_gedcom_gedcom_proto_rawDescGZIP(), []int{0, 1, 1}
 }
 
 func (x *Gedcom_Individual_Name) GetGivenName() string {
@@ -369,7 +424,7 @@ type Gedcom_Individual_Date struct {
 func (x *Gedcom_Individual_Date) Reset() {
 	*x = Gedcom_Individual_Date{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gedcom_proto_msgTypes[5]
+		mi := &file_gedcom_gedcom_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -382,7 +437,7 @@ func (x *Gedcom_Individual_Date) String() string {
 func (*Gedcom_Individual_Date) ProtoMessage() {}
 
 func (x *Gedcom_Individual_Date) ProtoReflect() protoreflect.Message {
-	mi := &file_gedcom_proto_msgTypes[5]
+	mi := &file_gedcom_gedcom_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +450,7 @@ func (x *Gedcom_Individual_Date) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gedcom_Individual_Date.ProtoReflect.Descriptor instead.
 func (*Gedcom_Individual_Date) Descriptor() ([]byte, []int) {
-	return file_gedcom_proto_rawDescGZIP(), []int{0, 0, 2}
+	return file_gedcom_gedcom_proto_rawDescGZIP(), []int{0, 1, 2}
 }
 
 func (x *Gedcom_Individual_Date) GetYear() string {
@@ -419,19 +474,25 @@ func (x *Gedcom_Individual_Date) GetDay() string {
 	return ""
 }
 
-var File_gedcom_proto protoreflect.FileDescriptor
+var File_gedcom_gedcom_proto protoreflect.FileDescriptor
 
-var file_gedcom_proto_rawDesc = []byte{
-	0x0a, 0x0c, 0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x06,
-	0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x22, 0xe4, 0x05, 0x0a, 0x06, 0x47, 0x65, 0x64, 0x63, 0x6f,
-	0x6d, 0x12, 0x3b, 0x0a, 0x0b, 0x49, 0x6e, 0x64, 0x69, 0x76, 0x69, 0x64, 0x75, 0x61, 0x6c, 0x73,
-	0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x19, 0x2e, 0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e,
-	0x47, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e, 0x49, 0x6e, 0x64, 0x69, 0x76, 0x69, 0x64, 0x75, 0x61,
-	0x6c, 0x52, 0x0b, 0x49, 0x6e, 0x64, 0x69, 0x76, 0x69, 0x64, 0x75, 0x61, 0x6c, 0x73, 0x12, 0x31,
-	0x0a, 0x08, 0x46, 0x61, 0x6d, 0x69, 0x6c, 0x69, 0x65, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b,
-	0x32, 0x15, 0x2e, 0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e, 0x47, 0x65, 0x64, 0x63, 0x6f, 0x6d,
-	0x2e, 0x46, 0x61, 0x6d, 0x69, 0x6c, 0x79, 0x52, 0x08, 0x46, 0x61, 0x6d, 0x69, 0x6c, 0x69, 0x65,
-	0x73, 0x1a, 0xfb, 0x03, 0x0a, 0x0a, 0x49, 0x6e, 0x64, 0x69, 0x76, 0x69, 0x64, 0x75, 0x61, 0x6c,
+var file_gedcom_gedcom_proto_rawDesc = []byte{
+	0x0a, 0x13, 0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x06, 0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x22, 0xbd, 0x06,
+	0x0a, 0x06, 0x47, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x12, 0x31, 0x0a, 0x06, 0x48, 0x65, 0x61, 0x64,
+	0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x19, 0x2e, 0x67, 0x65, 0x64, 0x63, 0x6f,
+	0x6d, 0x2e, 0x47, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x54,
+	0x79, 0x70, 0x65, 0x52, 0x06, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x12, 0x3b, 0x0a, 0x0b, 0x49,
+	0x6e, 0x64, 0x69, 0x76, 0x69, 0x64, 0x75, 0x61, 0x6c, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b,
+	0x32, 0x19, 0x2e, 0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e, 0x47, 0x65, 0x64, 0x63, 0x6f, 0x6d,
+	0x2e, 0x49, 0x6e, 0x64, 0x69, 0x76, 0x69, 0x64, 0x75, 0x61, 0x6c, 0x52, 0x0b, 0x49, 0x6e, 0x64,
+	0x69, 0x76, 0x69, 0x64, 0x75, 0x61, 0x6c, 0x73, 0x12, 0x31, 0x0a, 0x08, 0x46, 0x61, 0x6d, 0x69,
+	0x6c, 0x69, 0x65, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x67, 0x65, 0x64,
+	0x63, 0x6f, 0x6d, 0x2e, 0x47, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e, 0x46, 0x61, 0x6d, 0x69, 0x6c,
+	0x79, 0x52, 0x08, 0x46, 0x61, 0x6d, 0x69, 0x6c, 0x69, 0x65, 0x73, 0x1a, 0x24, 0x0a, 0x0a, 0x48,
+	0x65, 0x61, 0x64, 0x65, 0x72, 0x54, 0x79, 0x70, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x53, 0x6f, 0x75,
+	0x72, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x53, 0x6f, 0x75, 0x72, 0x63,
+	0x65, 0x1a, 0xfb, 0x03, 0x0a, 0x0a, 0x49, 0x6e, 0x64, 0x69, 0x76, 0x69, 0x64, 0x75, 0x61, 0x6c,
 	0x12, 0x0e, 0x0a, 0x02, 0x49, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x49, 0x64,
 	0x12, 0x34, 0x0a, 0x05, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32,
 	0x1e, 0x2e, 0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e, 0x47, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x2e,
@@ -469,52 +530,57 @@ var file_gedcom_proto_rawDesc = []byte{
 	0x68, 0x65, 0x72, 0x49, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x4d, 0x6f, 0x74, 0x68, 0x65, 0x72, 0x49,
 	0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x4d, 0x6f, 0x74, 0x68, 0x65, 0x72, 0x49,
 	0x64, 0x12, 0x1a, 0x0a, 0x08, 0x43, 0x68, 0x69, 0x6c, 0x64, 0x49, 0x64, 0x73, 0x18, 0x04, 0x20,
-	0x03, 0x28, 0x09, 0x52, 0x08, 0x43, 0x68, 0x69, 0x6c, 0x64, 0x49, 0x64, 0x73, 0x62, 0x06, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x03, 0x28, 0x09, 0x52, 0x08, 0x43, 0x68, 0x69, 0x6c, 0x64, 0x49, 0x64, 0x73, 0x42, 0x30, 0x5a,
+	0x2e, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6a, 0x6f, 0x63, 0x68,
+	0x65, 0x6e, 0x62, 0x6f, 0x65, 0x73, 0x6d, 0x61, 0x6e, 0x73, 0x2f, 0x67, 0x65, 0x64, 0x63, 0x6f,
+	0x6d, 0x2d, 0x70, 0x61, 0x72, 0x73, 0x65, 0x72, 0x2f, 0x67, 0x65, 0x64, 0x63, 0x6f, 0x6d, 0x62,
+	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
-	file_gedcom_proto_rawDescOnce sync.Once
-	file_gedcom_proto_rawDescData = file_gedcom_proto_rawDesc
+	file_gedcom_gedcom_proto_rawDescOnce sync.Once
+	file_gedcom_gedcom_proto_rawDescData = file_gedcom_gedcom_proto_rawDesc
 )
 
-func file_gedcom_proto_rawDescGZIP() []byte {
-	file_gedcom_proto_rawDescOnce.Do(func() {
-		file_gedcom_proto_rawDescData = protoimpl.X.CompressGZIP(file_gedcom_proto_rawDescData)
+func file_gedcom_gedcom_proto_rawDescGZIP() []byte {
+	file_gedcom_gedcom_proto_rawDescOnce.Do(func() {
+		file_gedcom_gedcom_proto_rawDescData = protoimpl.X.CompressGZIP(file_gedcom_gedcom_proto_rawDescData)
 	})
-	return file_gedcom_proto_rawDescData
+	return file_gedcom_gedcom_proto_rawDescData
 }
 
-var file_gedcom_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_gedcom_proto_goTypes = []interface{}{
+var file_gedcom_gedcom_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_gedcom_gedcom_proto_goTypes = []interface{}{
 	(*Gedcom)(nil),                  // 0: gedcom.Gedcom
-	(*Gedcom_Individual)(nil),       // 1: gedcom.Gedcom.Individual
-	(*Gedcom_Family)(nil),           // 2: gedcom.Gedcom.Family
-	(*Gedcom_Individual_Event)(nil), // 3: gedcom.Gedcom.Individual.Event
-	(*Gedcom_Individual_Name)(nil),  // 4: gedcom.Gedcom.Individual.Name
-	(*Gedcom_Individual_Date)(nil),  // 5: gedcom.Gedcom.Individual.Date
+	(*Gedcom_HeaderType)(nil),       // 1: gedcom.Gedcom.HeaderType
+	(*Gedcom_Individual)(nil),       // 2: gedcom.Gedcom.Individual
+	(*Gedcom_Family)(nil),           // 3: gedcom.Gedcom.Family
+	(*Gedcom_Individual_Event)(nil), // 4: gedcom.Gedcom.Individual.Event
+	(*Gedcom_Individual_Name)(nil),  // 5: gedcom.Gedcom.Individual.Name
+	(*Gedcom_Individual_Date)(nil),  // 6: gedcom.Gedcom.Individual.Date
 }
-var file_gedcom_proto_depIdxs = []int32{
-	1, // 0: gedcom.Gedcom.Individuals:type_name -> gedcom.Gedcom.Individual
-	2, // 1: gedcom.Gedcom.Families:type_name -> gedcom.Gedcom.Family
-	4, // 2: gedcom.Gedcom.Individual.Names:type_name -> gedcom.Gedcom.Individual.Name
-	3, // 3: gedcom.Gedcom.Individual.BirthEvents:type_name -> gedcom.Gedcom.Individual.Event
-	3, // 4: gedcom.Gedcom.Individual.DeathEvents:type_name -> gedcom.Gedcom.Individual.Event
-	5, // 5: gedcom.Gedcom.Individual.Event.Date:type_name -> gedcom.Gedcom.Individual.Date
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+var file_gedcom_gedcom_proto_depIdxs = []int32{
+	1, // 0: gedcom.Gedcom.Header:type_name -> gedcom.Gedcom.HeaderType
+	2, // 1: gedcom.Gedcom.Individuals:type_name -> gedcom.Gedcom.Individual
+	3, // 2: gedcom.Gedcom.Families:type_name -> gedcom.Gedcom.Family
+	5, // 3: gedcom.Gedcom.Individual.Names:type_name -> gedcom.Gedcom.Individual.Name
+	4, // 4: gedcom.Gedcom.Individual.BirthEvents:type_name -> gedcom.Gedcom.Individual.Event
+	4, // 5: gedcom.Gedcom.Individual.DeathEvents:type_name -> gedcom.Gedcom.Individual.Event
+	6, // 6: gedcom.Gedcom.Individual.Event.Date:type_name -> gedcom.Gedcom.Individual.Date
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
-func init() { file_gedcom_proto_init() }
-func file_gedcom_proto_init() {
-	if File_gedcom_proto != nil {
+func init() { file_gedcom_gedcom_proto_init() }
+func file_gedcom_gedcom_proto_init() {
+	if File_gedcom_gedcom_proto != nil {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_gedcom_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_gedcom_gedcom_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Gedcom); i {
 			case 0:
 				return &v.state
@@ -526,7 +592,19 @@ func file_gedcom_proto_init() {
 				return nil
 			}
 		}
-		file_gedcom_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_gedcom_gedcom_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Gedcom_HeaderType); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_gedcom_gedcom_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Gedcom_Individual); i {
 			case 0:
 				return &v.state
@@ -538,7 +616,7 @@ func file_gedcom_proto_init() {
 				return nil
 			}
 		}
-		file_gedcom_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_gedcom_gedcom_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Gedcom_Family); i {
 			case 0:
 				return &v.state
@@ -550,7 +628,7 @@ func file_gedcom_proto_init() {
 				return nil
 			}
 		}
-		file_gedcom_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_gedcom_gedcom_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Gedcom_Individual_Event); i {
 			case 0:
 				return &v.state
@@ -562,7 +640,7 @@ func file_gedcom_proto_init() {
 				return nil
 			}
 		}
-		file_gedcom_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_gedcom_gedcom_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Gedcom_Individual_Name); i {
 			case 0:
 				return &v.state
@@ -574,7 +652,7 @@ func file_gedcom_proto_init() {
 				return nil
 			}
 		}
-		file_gedcom_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_gedcom_gedcom_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Gedcom_Individual_Date); i {
 			case 0:
 				return &v.state
@@ -591,18 +669,18 @@ func file_gedcom_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: file_gedcom_proto_rawDesc,
+			RawDescriptor: file_gedcom_gedcom_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_gedcom_proto_goTypes,
-		DependencyIndexes: file_gedcom_proto_depIdxs,
-		MessageInfos:      file_gedcom_proto_msgTypes,
+		GoTypes:           file_gedcom_gedcom_proto_goTypes,
+		DependencyIndexes: file_gedcom_gedcom_proto_depIdxs,
+		MessageInfos:      file_gedcom_gedcom_proto_msgTypes,
 	}.Build()
-	File_gedcom_proto = out.File
-	file_gedcom_proto_rawDesc = nil
-	file_gedcom_proto_goTypes = nil
-	file_gedcom_proto_depIdxs = nil
+	File_gedcom_gedcom_proto = out.File
+	file_gedcom_gedcom_proto_rawDesc = nil
+	file_gedcom_gedcom_proto_goTypes = nil
+	file_gedcom_gedcom_proto_depIdxs = nil
 }

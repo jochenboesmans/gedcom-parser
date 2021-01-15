@@ -75,6 +75,8 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 
 	gedcom := gedcomSpec.NewConcurrencySafeGedcom()
 
+	headerInterpreted := false
+
 	i := 0
 	for fileScanner.Scan() {
 		line := ""
@@ -93,8 +95,15 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 
 		// interpret record once it's fully read
 		if len(recordLines) > 0 && level == 0 {
-			waitGroup.Add(1)
-			go gedcom.InterpretRecord(recordLines, waitGroup)
+			if !headerInterpreted {
+				err := gedcom.InterpretHeader(recordLines)
+				if err == nil {
+					headerInterpreted = true
+				}
+			} else {
+				waitGroup.Add(1)
+				go gedcom.InterpretRecord(recordLines, waitGroup)
+			}
 			recordLines = []*gedcomSpec.Line{}
 		}
 		recordLines = append(recordLines, gedcomLine)

@@ -5,6 +5,31 @@ import (
 	"sync"
 )
 
+func (g *ConcurrencySafeGedcom) InterpretHeader(headerLines []*Line) error {
+	h := &Gedcom_HeaderType{}
+	for i, headerLine := range headerLines {
+		tag, err := headerLine.Tag()
+		if err != nil || tag != "HEAD" {
+			continue // search lines until HEAD is found
+		}
+		for _, deepHeaderLine := range headerLines[i+1:] {
+			tag, err := deepHeaderLine.Tag()
+			if err != nil {
+				continue
+			}
+			switch tag {
+			case "SOUR":
+				h.Source = deepHeaderLine.Value()
+			}
+		}
+		break
+	}
+	g.lock()
+	g.Header = h
+	g.unlock()
+	return nil
+}
+
 // InterpretRecord concurrently interprets a top-level GEDCOM record
 // and puts the interpreted data in the ConcurrencySafeGedcom
 //

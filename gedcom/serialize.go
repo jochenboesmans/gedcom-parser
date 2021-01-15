@@ -57,6 +57,13 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 		// completely fail write if header write fails
 		return nil, err
 	}
+	if gedcom.Header.Source != "" {
+		headerSourceLevel := rootLevel + 1
+		err := createAndWriteLine(headerSourceLevel, "", "SOUR", gedcom.Header.Source, &lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 
 	for _, i := range gedcom.Individuals {
 		indiLevel := rootLevel
