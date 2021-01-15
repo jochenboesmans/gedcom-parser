@@ -5,6 +5,7 @@ import (
 	"sync"
 )
 
+// Interpret all gedcom metadata. Must be executed before any other record interpretation.
 func (g *ConcurrencySafeGedcom) InterpretHeader(headerLines []*Line) error {
 	h := &Gedcom_HeaderType{}
 	for i, headerLine := range headerLines {
