@@ -1,15 +1,15 @@
 # Gedcom parser
-Application for local gedcom parsing and gRPC service for gedcom parsing on AWS S3.
+Lightweight, high performance GEDCOM 5.5.1 parser allowing for easy conversion between `.ged` and `.json` files representing lineage-linked family trees.
 
 ## Installation
 ### Using binary
-1. Download the appropriate release for your OS and architecture
+1. Download the appropriate release for your OS and architecture from GitHub releases
 2. Unzip it
 3. Add the resulting binary to your `$PATH`
 ### Using Go
 Run `go get github.com/jochenboesmans/gedcom-parser`
 ## Usage
-Please make sure to use the file extensions `.ged`, `.json` and `.protobuf` for respectively gedcom, json and protobuf files and to include them in the filepaths.
+Please make sure to use the file extensions `.ged` and `.json` for respectively gedcom and json files and to include them in the filepaths.
 ### Parsing local files
 * `gedcom-parser parse path/to/input/file path/to/output/file`
 ### gRPC service
@@ -24,30 +24,41 @@ Supplying AWS env variables is only necessary for running `serve`.
 
    
 ## Gedcom specification
-The gedcom model used is based on a limited subset of GEDCOM 5.5.1 as seen in the below proto spec:
+The gedcom model used is based on a limited subset of GEDCOM 5.5.1 as seen in the below proto spec and is fully 5.5.1 spec extensible:
 ```proto
 message Gedcom {
-    repeated Individual Individuals = 1;
-    repeated Family Families = 2;
+    HeaderType Header = 1;
+    repeated Individual Individuals = 2;
+    repeated Family Families = 3;
+
+    message HeaderType {
+        string Source = 1;
+    }
 
     message Individual {
         string Id = 1;
         repeated Name Names = 2;
         string Gender = 3;
-        Date BirthDate = 4;
-        Date DeathDate = 5;
+        repeated Event BirthEvents = 4;
+        repeated Event DeathEvents = 5;
 
+        message Event {
+            Date Date = 1;
+            string Place = 2;
+            bool Primary = 3;
+        }
         message Name {
             string GivenName = 1;
             string Surname = 2;
             bool Primary = 3;
         }
         message Date {
-            uint32 Year = 1;
-            uint32 Month = 2;
-            uint32 Day = 3;
+            string Year = 1;
+            string Month = 2;
+            string Day = 3;
         }
     }
+
     message Family {
         string Id = 1;
         string FatherId = 2;
