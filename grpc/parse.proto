@@ -1,5 +1,7 @@
 syntax = "proto3";
+
 package grpc;
+option go_package = "github.com/jochenboesmans/gedcom-parser/grpc";
 
 message PathsToFiles {
     string inputFilePath = 1;
