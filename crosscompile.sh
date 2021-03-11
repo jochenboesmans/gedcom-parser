@@ -1,11 +1,7 @@
-# build
-env GOOS=darwin GOARCH=amd64 go build -o gedcom-parser.darwin.amd64
-env GOOS=darwin GOARCH=arm64 go build -o gedcom-parser.darwin.arm64
-env GOOS=linux GOARCH=amd64 go build -o gedcom-parser.linux.amd64
-env GOOS=windows GOARCH=amd64 go build -o gedcom-parser.windows.amd64
+declare -a os=("darwin" "darwin" "linux" "windows")
+declare -a arch=("amd64" "arm64" "amd64" "amd64")
 
-# zip
-7z a gedcom-parser.darwin.amd64.7z gedcom-parser.darwin.amd64
-7z a gedcom-parser.darwin.arm64.7z gedcom-parser.darwin.arm64
-7z a gedcom-parser.linux.amd64.7z gedcom-parser.linux.amd64
-7z a gedcom-parser.windows.amd64.7z gedcom-parser.windows.amd64
+for i in "${os[@]}"; do
+  env GOOS="${os[$i]}" GOARCH="${arch[$i]}" go build -o gedcom-parser."${os[$i]}"."${arch[$i]}"
+  7z a gedcom-parser."${os[$i]}"."${arch[$i]}".7z gedcom-parser."${os[$i]}"."${arch[$i]}"
+done
