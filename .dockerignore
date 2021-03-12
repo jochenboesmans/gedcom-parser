@@ -1,8 +1,10 @@
 .idea
-io
+
+# dir for output of test files
+test-output
 
 # binaries
 gedcom-parser
 
-# scripts
-crosscompile.sh
+# large examples
+examples/ITIS.ged

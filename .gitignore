@@ -1,6 +1,11 @@
 .idea
 .env
-io
 
 # binaries
 gedcom-parser*
+
+# dir for output of test files
+test-output
+
+# large examples
+examples/ITIS.ged

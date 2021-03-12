@@ -54,7 +54,7 @@ func Parse(inputFilePath string, outputFilePath string) {
 	}
 
 	secondsSinceBeginTime := float64(time.Since(beginTime)) * math.Pow10(-9)
-	fmt.Printf("successfully parsed file at %s to %s. total time taken: %f seconds\n", inputFilePath, outputFilePath, secondsSinceBeginTime)
+	log.Printf("successfully parsed file at %s to %s. total time taken: %f seconds\n", inputFilePath, outputFilePath, secondsSinceBeginTime)
 }
 
 func trimBOM(line string) string {
