@@ -136,19 +136,20 @@ func (gedcomLine *Line) Value() string {
 }
 
 func (gedcomLine *Line) ToString() (string, error) {
-	r := ""
+	var sb strings.Builder
 
 	// level
 	l, err := gedcomLine.Level()
 	if err != nil {
 		return "", err
 	}
-	r += strconv.Itoa(int(l))
+	sb.WriteString(strconv.Itoa(int(l)))
 
 	// xRefID
 	x := gedcomLine.XRefID()
 	if x != "" {
-		r += fmt.Sprintf(" %s", x)
+		sb.WriteString(" ")
+		sb.WriteString(x)
 	}
 
 	// tag
@@ -156,15 +157,17 @@ func (gedcomLine *Line) ToString() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	r += fmt.Sprintf(" %s", strings.ToUpper(t))
+	sb.WriteString(" ")
+	sb.WriteString(strings.ToUpper(t))
 
 	// value
 	v := gedcomLine.Value()
 	if v != "" {
-		r += fmt.Sprintf(" %s", v)
+		sb.WriteString(" ")
+		sb.WriteString(v)
 	}
 
-	r += "\n"
+	sb.WriteString("\n")
 
-	return r, nil
+	return sb.String(), nil
 }
