@@ -19,6 +19,7 @@ import (
 type Server struct {
 	downloader *s3manager.Downloader
 	uploader   *s3manager.Uploader
+	ParseServiceServer
 }
 
 func (s *Server) init() {
