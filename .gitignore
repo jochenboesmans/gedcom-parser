@@ -4,8 +4,6 @@
 # binaries
 gedcom-parser*
 
-# dir for output of test files
-test-output
-
 # large examples
 examples/ITIS.ged
+test-output/ITIS.json

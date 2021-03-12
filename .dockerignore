@@ -1,10 +1,9 @@
 .idea
 
-# dir for output of test files
-test-output
 
 # binaries
 gedcom-parser
 
 # large examples
 examples/ITIS.ged
+test-output/ITIS.json
