@@ -44,13 +44,8 @@ func Parse(inputFilePath string, outputFilePath string) {
 		if err != nil {
 			log.Fatalf("failed to parse JSON file at %s with error: %s\n", inputFilePath, err)
 		}
-	case ".protobuf":
-		output, err = ParseProtobuf(inputReader)
-		if err != nil {
-			log.Fatalf("failed to parse Protobuf file at %s with error: %s\n", inputFilePath, err)
-		}
 	default:
-		log.Fatalf("failed to match input file (at %s) extension to: .ged|.json|.protobuf\n", inputFilePath)
+		log.Fatalf("failed to match input file (at %s) extension to: .ged|.json\n", inputFilePath)
 	}
 
 	err = ioutil.WriteFile(outputFilePath, *output, 0600)
@@ -117,8 +112,6 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 	switch filepath.Ext(to) {
 	case ".json":
 		return gedcom.ToJson()
-	case ".protobuf":
-		return gedcom.ToProto()
 	}
 
 	return nil, fmt.Errorf("failed to match output file extension to: %s", ".json|.protobuf")

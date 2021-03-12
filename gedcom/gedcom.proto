@@ -10,7 +10,14 @@ message Gedcom {
 
     message HeaderType {
         string Source = 1;
-        string Submission = 2;
+        string Submitter = 2;
+        GedcomMetaDataType GedcomMetaData = 3;
+        string CharacterSet = 4;
+
+        message GedcomMetaDataType {
+            string VersionNumber = 1;
+            string GedcomForm = 2;
+        }
     }
 
     message Individual {

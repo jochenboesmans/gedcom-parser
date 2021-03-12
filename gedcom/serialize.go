@@ -64,6 +64,32 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 			log.Println(err)
 		}
 	}
+	if gedcom.Header.Submitter != "" {
+		headerSubmitterLevel := rootLevel + 1
+		err := createAndWriteLine(headerSubmitterLevel, "", "SUBM", gedcom.Header.Submitter, &lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	if gedcom.Header.GedcomMetaData.VersionNumber != "" {
+		headerGedcomMetaDataLevel := rootLevel + 1
+		err := createAndWriteLine(headerGedcomMetaDataLevel, "", "GEDC", gedcom.Header.GedcomMetaData.VersionNumber, &lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+		} else {
+			err := createAndWriteLine(headerGedcomMetaDataLevel, "", "FORM", gedcom.Header.GedcomMetaData.GedcomForm, &lineCounter, buf)
+			if err != nil {
+				log.Println(err)
+			}
+		}
+	}
+	if gedcom.Header.CharacterSet != "" {
+		headerCharacterSetLevel := rootLevel + 1
+		err := createAndWriteLine(headerCharacterSetLevel, "", "CHAR", gedcom.Header.CharacterSet, &lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 
 	for _, i := range gedcom.Individuals {
 		indiLevel := rootLevel

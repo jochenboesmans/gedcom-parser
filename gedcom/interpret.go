@@ -14,7 +14,7 @@ func (g *ConcurrencySafeGedcom) InterpretHeader(headerLines []*Line) error {
 		if err != nil || tag != "HEAD" {
 			continue // search lines until HEAD is found
 		}
-		for _, deepHeaderLine := range headerLines[i+1:] {
+		for i, deepHeaderLine := range headerLines[i+1:] {
 			tag, err := deepHeaderLine.Tag()
 			if err != nil {
 				continue
@@ -22,6 +22,15 @@ func (g *ConcurrencySafeGedcom) InterpretHeader(headerLines []*Line) error {
 			switch tag {
 			case "SOUR":
 				h.Source = deepHeaderLine.Value()
+			case "SUBM":
+				h.Submitter = deepHeaderLine.Value()
+			case "GEDC":
+				h.GedcomMetaData = &Gedcom_HeaderType_GedcomMetaDataType{
+					VersionNumber: deepHeaderLine.Value(),
+					GedcomForm:    headerLines[i+1].Value(),
+				}
+			case "CHAR":
+				h.CharacterSet = deepHeaderLine.Value()
 			}
 		}
 		break
