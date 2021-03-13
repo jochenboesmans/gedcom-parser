@@ -70,7 +70,7 @@ func (g *ConcurrencySafeGedcom) InterpretHeader(headerLines []*Line) error {
 //
 // * SOURCE_RECORD (SOUR)
 //
-// * SUBMITTER_RECORD (SUBN)
+// * SUBMITTER_RECORD (SUBM)
 //
 func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*Line, waitGroup *sync.WaitGroup) {
 	tag, err := recordLines[0].Tag()
@@ -90,8 +90,8 @@ func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*Line, waitGroup *
 		// TODO
 	case "SOUR":
 		// TODO
-	case "SUBN":
-		// TODO
+	case "SUBM":
+		g.interpretSubmitterRecord(recordLines)
 	}
 	waitGroup.Done()
 }
@@ -205,6 +205,39 @@ func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {
 	g.lock()
 	g.Gedcom.Families = append(g.Gedcom.Families, &familyInstance)
 	g.unlock()
+}
+
+func (g *ConcurrencySafeGedcom) interpretSubmitterRecord(recordLines []*Line) {
+	xRefID := recordLines[0].XRefID()
+	submitterInstance := Gedcom_Submitter{
+		Id: xRefID,
+	}
+	rootLevel, err := recordLines[0].Level()
+	if err != nil {
+		return
+	}
+	for _, line := range recordLines[1:] {
+		level, err := line.Level()
+		if err != nil {
+			continue
+		}
+		if level <= rootLevel {
+			break // end of record
+		}
+
+		tag, err := line.Tag()
+		if err != nil {
+			continue
+		}
+		switch tag {
+		case "NAME":
+			submitterInstance.Name = line.Value()
+		}
+	}
+	g.lock()
+	g.Gedcom.Submitters = append(g.Gedcom.Submitters, &submitterInstance)
+	g.unlock()
+
 }
 
 func logError(firstLine *Line, structureKind string, err error) {

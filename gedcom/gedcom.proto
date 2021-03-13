@@ -7,6 +7,7 @@ message Gedcom {
     HeaderType Header = 1;
     repeated Individual Individuals = 2;
     repeated Family Families = 3;
+    repeated Submitter Submitters = 4;
 
     message HeaderType {
         string Source = 1;
@@ -49,6 +50,11 @@ message Gedcom {
         string FatherId = 2;
         string MotherId = 3;
         repeated string ChildIds = 4;
+    }
+
+    message Submitter {
+       string Id = 1;
+       string Name = 2;
     }
 }
 
