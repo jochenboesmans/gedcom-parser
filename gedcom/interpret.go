@@ -218,6 +218,61 @@ func (g *ConcurrencySafeGedcom) interpretNoteRecord(recordLines []*Line) {
 	g.unlock()
 }
 
+func (g *ConcurrencySafeGedcom) interpretMultimediaRecord(recordLines []*Line) {
+	xRefID := recordLines[0].XRefID()
+	multimedia := Gedcom_Multimedia{
+		Id:    xRefID,
+		Files: []*Gedcom_Multimedia_File{},
+	}
+	rootLevel, err := recordLines[0].Level()
+	if err != nil {
+		return
+	}
+	for i, line := range recordLines[1:] {
+		level, err := line.Level()
+		if err != nil {
+			continue
+		}
+		if level <= rootLevel {
+			break // end of record
+		}
+
+		tag, err := line.Tag()
+		if err != nil {
+			continue
+		}
+		switch tag {
+		case "FILE":
+			// TODO: extract to function
+			reference := line.Value()
+			file := Gedcom_Multimedia_File{
+				Reference: reference,
+			}
+			for _, fileLine := range recordLines[i+1:] {
+				fileLevel, err := fileLine.Level()
+				if err != nil {
+					continue
+				}
+				if fileLevel <= rootLevel+1 {
+					break // end of record
+				}
+				fileTag, err := fileLine.Tag()
+				if err != nil {
+					continue
+				}
+				switch fileTag {
+				case "FORM":
+					file.Format = fileLine.Value()
+				}
+			}
+			multimedia.Files = append(multimedia.Files, &file)
+		}
+	}
+	g.lock()
+	g.Multimedias = append(g.Multimedias, &multimedia)
+	g.unlock()
+}
+
 func (g *ConcurrencySafeGedcom) interpretRepositoryRecord(recordLines []*Line) {
 	xRefID := recordLines[0].XRefID()
 	repository := Gedcom_Repository{

@@ -192,6 +192,30 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 		}
 	}
 
+	multimediaLevel := rootLevel
+	for _, multimedia := range g.Multimedias {
+		err := createAndWriteLine(multimediaLevel, multimedia.Id, "OBJE", "", &lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		for _, file := range multimedia.Files {
+			fileLevel := multimediaLevel + 1
+			err := createAndWriteLine(fileLevel, "", "FILE", file.Reference, &lineCounter, buf)
+			if err != nil {
+				log.Println(err)
+			}
+			if file.Format != "" {
+				formatLevel := fileLevel + 1
+				err := createAndWriteLine(formatLevel, "", "FORM", file.Format, &lineCounter, buf)
+				if err != nil {
+					log.Println(err)
+				}
+			}
+		}
+	}
+
 	noteLevel := rootLevel
 	for _, note := range g.Notes {
 		err := createAndWriteLine(noteLevel, note.Id, "NOTE", note.SubmitterText, &lineCounter, buf)
