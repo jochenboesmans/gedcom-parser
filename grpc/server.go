@@ -65,19 +65,8 @@ func (s *Server) Parse(_ context.Context, paths *PathsToFiles) (*Result, error) 
 				Error: errMessage,
 			}, nil
 		}
-	case ".protobuf":
-		log.Printf("parsing protobuf...\n")
-		output, err = parse.ParseProtobuf(inputReader)
-		if err != nil {
-			errMessage := fmt.Sprintf("failed to parse protobuf: %s", err)
-			log.Println(errMessage)
-			return &Result{
-				Error: errMessage,
-			}, nil
-		}
-
 	default:
-		errMessage := fmt.Sprintf("failed to match input file extension to: %s", ".ged|.json|.protobuf")
+		errMessage := fmt.Sprintf("failed to match input file extension to: %s", ".ged|.json")
 		log.Println(errMessage)
 		return &Result{
 			Error: errMessage,

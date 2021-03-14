@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	gedcomSpec "github.com/jochenboesmans/gedcom-parser/gedcom"
 	"io"
 	"io/ioutil"
@@ -107,7 +106,7 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 
 	waitGroup.Wait()
 
-	//gedcom.RemoveInvalidFamilies()
+	gedcom.Validate()
 
 	switch filepath.Ext(to) {
 	case ".json":
@@ -133,33 +132,7 @@ func ParseJSON(inputReader io.Reader) (*[]byte, error) {
 	concSafeGedcom := gedcomSpec.NewConcurrencySafeGedcom()
 	concSafeGedcom.Gedcom = gedcom
 
-	//concSafeGedcom.RemoveInvalidFamilies()
-
-	gedcomBuf, err := concSafeGedcom.ToSerializedGedcom()
-	if err != nil {
-		return nil, err
-	}
-	gedcomBytes := gedcomBuf.Bytes()
-	return &gedcomBytes, nil
-}
-
-func ParseProtobuf(inputReader io.Reader) (*[]byte, error) {
-	var gedcom gedcomSpec.Gedcom
-
-	gedcomProto, err := ioutil.ReadAll(inputReader)
-	if err != nil {
-		return nil, err
-	}
-
-	err = proto.Unmarshal(gedcomProto, &gedcom)
-	if err != nil {
-		return nil, err
-	}
-
-	concSafeGedcom := gedcomSpec.NewConcurrencySafeGedcom()
-	concSafeGedcom.Gedcom = gedcom
-
-	//concSafeGedcom.RemoveInvalidFamilies()
+	concSafeGedcom.Validate()
 
 	gedcomBuf, err := concSafeGedcom.ToSerializedGedcom()
 	if err != nil {
