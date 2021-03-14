@@ -87,7 +87,7 @@ func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*Line, waitGroup *
 	case "NOTE":
 		// TODO
 	case "REPO":
-		// TODO
+		g.interpretRepositoryRecord(recordLines)
 	case "SOUR":
 		g.interpretSourceRecord(recordLines)
 	case "SUBM":
@@ -204,6 +204,38 @@ func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {
 	}
 	g.lock()
 	g.Gedcom.Families = append(g.Gedcom.Families, &familyInstance)
+	g.unlock()
+}
+
+func (g *ConcurrencySafeGedcom) interpretRepositoryRecord(recordLines []*Line) {
+	xRefID := recordLines[0].XRefID()
+	repository := Gedcom_Repository{
+		Id: xRefID,
+	}
+	rootLevel, err := recordLines[0].Level()
+	if err != nil {
+		return
+	}
+	for _, line := range recordLines[1:] {
+		level, err := line.Level()
+		if err != nil {
+			continue
+		}
+		if level <= rootLevel {
+			break // end of record
+		}
+
+		tag, err := line.Tag()
+		if err != nil {
+			continue
+		}
+		switch tag {
+		case "NAME":
+			repository.Name = line.Value()
+		}
+	}
+	g.lock()
+	g.Gedcom.Repositories = append(g.Gedcom.Repositories, &repository)
 	g.unlock()
 }
 

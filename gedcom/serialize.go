@@ -192,6 +192,23 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 		}
 	}
 
+	repositoryLevel := rootLevel
+	for _, repository := range g.Repositories {
+		err := createAndWriteLine(repositoryLevel, repository.Id, "REPO", "", &lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		if repository.Name != "" {
+			nameLevel := repositoryLevel + 1
+			err := createAndWriteLine(nameLevel, "", "NAME", repository.Name, &lineCounter, buf)
+			if err != nil {
+				log.Println(err)
+			}
+		}
+	}
+
 	sourceLevel := rootLevel
 	for _, source := range g.Sources {
 		err := createAndWriteLine(sourceLevel, source.Id, "SOUR", "", &lineCounter, buf)
@@ -214,7 +231,6 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 			err := createAndWriteLine(nameLevel, "", "NAME", submitter.Name, &lineCounter, buf)
 			if err != nil {
 				log.Println(err)
-				continue
 			}
 		}
 	}
