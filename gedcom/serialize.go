@@ -192,6 +192,15 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 		}
 	}
 
+	noteLevel := rootLevel
+	for _, note := range g.Notes {
+		err := createAndWriteLine(noteLevel, note.Id, "NOTE", note.SubmitterText, &lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+	}
+
 	repositoryLevel := rootLevel
 	for _, repository := range g.Repositories {
 		err := createAndWriteLine(repositoryLevel, repository.Id, "REPO", "", &lineCounter, buf)

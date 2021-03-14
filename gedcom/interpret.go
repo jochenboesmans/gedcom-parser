@@ -85,7 +85,7 @@ func (g *ConcurrencySafeGedcom) InterpretRecord(recordLines []*Line, waitGroup *
 	case "OBJE":
 		// TODO
 	case "NOTE":
-		// TODO
+		g.interpretNoteRecord(recordLines)
 	case "REPO":
 		g.interpretRepositoryRecord(recordLines)
 	case "SOUR":
@@ -204,6 +204,17 @@ func (g *ConcurrencySafeGedcom) interpretFamilyRecord(recordLines []*Line) {
 	}
 	g.lock()
 	g.Gedcom.Families = append(g.Gedcom.Families, &familyInstance)
+	g.unlock()
+}
+
+func (g *ConcurrencySafeGedcom) interpretNoteRecord(recordLines []*Line) {
+	xRefID, submitterText := recordLines[0].XRefID(), recordLines[0].Value()
+	note := Gedcom_Note{
+		Id:            xRefID,
+		SubmitterText: submitterText,
+	}
+	g.lock()
+	g.Gedcom.Notes = append(g.Gedcom.Notes, &note)
 	g.unlock()
 }
 
