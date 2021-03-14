@@ -192,6 +192,15 @@ func (g *ConcurrencySafeGedcom) ToSerializedGedcom() (*bytes.Buffer, error) {
 		}
 	}
 
+	sourceLevel := rootLevel
+	for _, source := range g.Sources {
+		err := createAndWriteLine(sourceLevel, source.Id, "SOUR", "", &lineCounter, buf)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+	}
+
 	submitterLevel := rootLevel
 	for _, submitter := range g.Submitters {
 		err := createAndWriteLine(submitterLevel, submitter.Id, "SUBM", "", &lineCounter, buf)
