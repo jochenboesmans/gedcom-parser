@@ -1,6 +1,22 @@
 package gedcom
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
+
+func (g *ConcurrencySafeGedcom) ValidateIdUniqueness() {
+	alternativeId := 999999 // TODO: assign definitely unique alternative ids
+	ids := map[string]bool{}
+	for i, indi := range g.Individuals {
+		if alreadyInMap := ids[indi.Id]; alreadyInMap {
+			g.lock()
+			g.Individuals[i].Id = fmt.Sprintf("@I%d@", alternativeId)
+			g.unlock()
+			alternativeId--
+		}
+	}
+}
 
 func contains(submitters []*Gedcom_Submitter, xRefId string) bool {
 	for _, s := range submitters {
@@ -27,7 +43,8 @@ func (g *ConcurrencySafeGedcom) ValidateHeaderXRefIntegrity() {
 
 }
 
-// ValidateFamilyRecordXRefIDs ensures integrity of cross references to indi records in family records
+// ValidateFamilyRecordXRefIdIntegrity ensures integrity of cross references to indi records in family records
+// COST WARNING: O(f*c) where f is the amount of family records and c is the amount of children in a family
 func (g *ConcurrencySafeGedcom) ValidateFamilyRecordXRefIdIntegrity() {
 	indexedIndividuals := g.IndividualsByIds()
 
@@ -53,6 +70,7 @@ func (g *ConcurrencySafeGedcom) ValidateFamilyRecordXRefIdIntegrity() {
 }
 
 func (g *ConcurrencySafeGedcom) Validate() {
+	g.ValidateIdUniqueness()
 	g.ValidateHeaderXRefIntegrity()
 	g.ValidateFamilyRecordXRefIdIntegrity()
 }

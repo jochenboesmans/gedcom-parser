@@ -31,3 +31,11 @@ func (g *ConcurrencySafeGedcom) IndividualsByIds() map[string]*Gedcom_Individual
 	}
 	return result
 }
+
+func (g *ConcurrencySafeGedcom) FamiliesByIds() map[string]*Gedcom_Family {
+	result := map[string]*Gedcom_Family{}
+	for _, i := range g.Families {
+		result[i.Id] = i
+	}
+	return result
+}
