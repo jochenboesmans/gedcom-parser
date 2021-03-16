@@ -26,5 +26,10 @@ Supplying AWS env variables is only necessary for running `serve`.
 The gedcom model used is based on a limited subset of GEDCOM 5.5.1 and is fully 5.5.1 spec extensible.
 See `./gedcom/gedcom.proto` for the full specification.
 
+## Validation
+By default, the parser will validate the following:
+1. Record id uniqueness
+2. Cross-referential id integrity, i.e. references from within records to other records are valid
+
 ## Examples
 See files in `./examples` and `./test-output`.
