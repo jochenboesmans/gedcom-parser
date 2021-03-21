@@ -8,20 +8,26 @@ import (
 )
 
 func BenchmarkParseITISGedToJson(b *testing.B) {
-	file, err := os.Create("./heap-profile.pb.gz")
+	cpuFile, err := os.Create("cpu.prof")
 	if err != nil {
 		return
 	}
-	err = pprof.WriteHeapProfile(file)
+	err = pprof.StartCPUProfile(cpuFile)
 	if err != nil {
 		return
 	}
-	b.ReportAllocs()
 	parse.Parse("examples/ITIS.ged", "test-output/ITIS.json")
-	err = pprof.WriteHeapProfile(file)
+	pprof.StopCPUProfile()
+
+	memFile, err := os.Create("mem.prof")
 	if err != nil {
 		return
 	}
+	err = pprof.WriteHeapProfile(memFile)
+	if err != nil {
+		return
+	}
+
 }
 
 func BenchmarkParseITISJsonToGed(b *testing.B) {
