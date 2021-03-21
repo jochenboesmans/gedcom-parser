@@ -25,8 +25,8 @@ func (gedcom *ConcurrencySafeGedcom) ToProto() (*[]byte, error) {
 	return &gedcomProto, nil
 }
 
-func writeLine(line *Line, buf *bytes.Buffer, lineCounter *int) error {
-	lineString, err := line.ToString()
+func writeLine(gedcomFields *GedcomFields, buf *bytes.Buffer, lineCounter *int) error {
+	lineString, err := gedcomFields.ToLine()
 	if err != nil {
 		return fmt.Errorf("failed to serialize line %d with error: %s", *lineCounter, err)
 	}
@@ -36,13 +36,13 @@ func writeLine(line *Line, buf *bytes.Buffer, lineCounter *int) error {
 }
 
 func createAndWriteLine(level int, xRefID string, tag string, value string, lineCounter *int, buf *bytes.Buffer) error {
-	line := &Line{
-		level:  int8(level),
-		tag:    tag,
-		xRefID: xRefID,
-		value:  value,
+	gedcomFields := &GedcomFields{
+		int8(level),
+		xRefID,
+		tag,
+		value,
 	}
-	err := writeLine(line, buf, lineCounter)
+	err := writeLine(gedcomFields, buf, lineCounter)
 	return err
 }
 

@@ -349,10 +349,6 @@ func (g *ConcurrencySafeGedcom) interpretSubmitterRecord(recordLines []*Line) {
 }
 
 func logError(firstLine *Line, structureKind string, err error) {
-	l, toStringErr := firstLine.ToString()
-	if toStringErr != nil {
-		log.Printf("failed to interpret %s structure with error: %s\n", structureKind, err)
-	} else {
-		log.Printf("failed to interpret %s structure starting with %s with error: %s\n", structureKind, l, err)
-	}
+	l := firstLine.lineString
+	log.Printf("failed to interpret %s structure starting with %s with error: %s\n", structureKind, l, err)
 }

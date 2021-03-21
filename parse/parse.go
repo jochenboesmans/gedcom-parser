@@ -80,7 +80,7 @@ func ParseGedcom(inputReader io.Reader, to string) (*[]byte, error) {
 		} else {
 			line = readLine
 		}
-		gedcomLine := gedcomSpec.NewLine(&line)
+		gedcomLine := gedcomSpec.NewLine(line)
 
 		level, err := gedcomLine.Level()
 		if err != nil {
