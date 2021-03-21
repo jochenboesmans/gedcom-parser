@@ -77,7 +77,7 @@ var expectedResults = []Name{
 func recordLines(multiLines []string) []*Line {
 	r := []*Line{}
 	for i := range multiLines {
-		r = append(r, NewLine(&multiLines[i]))
+		r = append(r, NewLine(multiLines[i]))
 	}
 	return r
 }

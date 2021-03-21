@@ -28,7 +28,7 @@ func TestInterpretDateStructure(t *testing.T) {
 		},
 	}
 	for i, testDateValue := range testDateValues {
-		l := NewLine(&testDateValue)
+		l := NewLine(testDateValue)
 		result := interpretDateStructure(l)
 		if result != expectedValues[i] {
 			t.Errorf("result date %+v does not match expected date %+v", result, expectedValues[i])
