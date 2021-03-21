@@ -1,6 +1,18 @@
 # Gedcom parser
 Lightweight, high performance GEDCOM 5.5.1 parser allowing for easy conversion between `.ged` and `.json` files representing lineage-linked family trees.
 
+# Benchmarks
+Benchmarks include full validation. CPU used for testing is Macbook Air M1 (ARM).
+
+| | Harry Potter (16KB) | Gods from Wikipedia (1.4MB) | ITIS (95.7MB) |
+| --- | --- | --- | --- |
+Time | 0.001s | 0.015s | 1.42s |
+Memory (heap) | N/A(?) | 2.61MB | 203.90MB
+
+?: too low to profile
+
+Time/space tradeoffs were made in favor of time to allow for p99 parsing times <1s.
+
 ## Installation
 ### Using binary
 1. Download the appropriate release for your OS and architecture from GitHub releases
